@@ -7,11 +7,11 @@
 
 namespace LibBGP {
 
-typedef struct BGPOptionalParameters {
+typedef struct BGPOptionalParameter {
     uint8_t type;
     uint8_t length;
     uint8_t *value;
-} BGPOptionalParameters;
+} BGPOptionalParameter;
 
 typedef struct BGPOpenMessage {
     uint8_t version;
@@ -19,12 +19,44 @@ typedef struct BGPOpenMessage {
     uint16_t hold_time;
     uint32_t bgp_id;
     uint8_t opt_parm_len;
-    std::vector<BGPOptionalParameters*> *opt_parm;
+    std::vector<BGPOptionalParameter*> *opt_parms;
 } BGPOpenMessage;
+
+typedef struct BGPASPath {
+    uint8_t type;
+    uint8_t length;
+    std::vector<uint16_t> *path;
+} BGPASPath;
+
+typedef struct BGPRoute {
+    uint8_t length;
+    uint8_t* prefix;
+} BGPRoute;
+
+typedef struct BGPPathAttribute {
+    bool optional;
+    bool transitive;
+    bool partial;
+    bool extened;
+    uint8_t type;
+    uint16_t length;
+
+    uint8_t origin;
+    BGPASPath *as_path;
+    uint32_t next_hop;
+    uint32_t med;
+    uint32_t local_pref;
+    bool atomic_aggregate;
+    uint16_t aggregator_asn;
+    uint32_t aggregator;
+} BGPPathAttribute;
 
 typedef struct BGPUpdateMessage {
     uint16_t withdrawn_len;
-    //std::vector<
+    std::vector<BGPRoute*> *withdrawn_routes;
+    uint16_t path_attribute_length;
+    std::vector<BGPPathAttribute*> *path_attribute;
+    std::vector<BGPRoute*> *nlri;
 } BGPUpdateMessage;
 
 typedef struct BGPKeepaliveMessage {
