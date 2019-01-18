@@ -18,43 +18,29 @@ template <typename T> T getValue(uint8_t **buffer) {
 
 }
 
-int parseBanner (ParserPair *pair) {
-    uint8_t *buffer = pair->first;
-    BGPPacket *parsed = pair->second;
-
+int parseHeader (uint8_t *buffer, BGPPacket *parsed) {
     if (memcmp(buffer, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0)
         return -1;
 
-    pair->first += 16;
-    return parseHeader(pair);
-}
+    buffer += 16;
 
-int parseHeader (ParserPair *pair) {
-    uint8_t *buffer = pair->first;
-    BGPPacket *parsed = pair->second;
-    
     parsed->length = ntohs(getValue<uint16_t> (&buffer));
 
     if (parsed->length > 4096) return -1;
 
     parsed->type = getValue<uint8_t> (&buffer);
 
-    pair->first = buffer;
-
     switch(parsed->type) {
-        case 1: return parseOpenMessage(pair); break;
-        case 2: return parseUpdateMessage(pair); break;
-        case 3: return parseNofiticationMessage(pair); break;
-        case 4: return parseKeepaliveMessage(pair); break;
+        case 1: return parseOpenMessage(buffer, parsed); break;
+        case 2: return parseUpdateMessage(buffer, parsed); break;
+        case 3: return parseNofiticationMessage(buffer, parsed); break;
+        case 4: return parseKeepaliveMessage(buffer, parsed); break;
         default: return -1;
     }
 
 }
 
-int parseOpenMessage(ParserPair *pair) {
-    uint8_t *buffer = pair->first;
-    BGPPacket *parsed = pair->second;
-
+int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
     BGPOpenMessage *msg = new BGPOpenMessage;
     msg->version = getValue<uint8_t> (&buffer);
     msg->my_asn = ntohs(getValue<uint16_t> (&buffer));
@@ -74,7 +60,25 @@ int parseOpenMessage(ParserPair *pair) {
         parm->value = (uint8_t *) malloc(parm->length);
         memcpy(parm->value, buffer, parm->length);
 
-        buffer += parm->length;
+        if (parm->type == 2) { // Capability
+            BGPCapabilities *cap = new BGPCapabilities;
+            cap->code = getValue<uint8_t> (&buffer);
+            cap->length = getValue<uint8_t> (&buffer);
+            cap->value = (uint8_t *) malloc(cap->length);
+            memcpy(cap->value, buffer, cap->length);
+
+            switch (cap->code) {
+                case 65: { // 4b ASN
+                    cap->as4_support = true;
+                    cap->my_asn = ntohl(getValue<uint32_t> (&buffer));
+                    break;
+                }
+                default: buffer += cap->length;
+            }
+
+            parm->capability = cap;
+        } else buffer += parm->length;
+
         parsed_parm_len += parm->length + 2;
         parms->push_back(parm);
     }
@@ -83,10 +87,8 @@ int parseOpenMessage(ParserPair *pair) {
     parsed->open = msg;
     return 0;
 }
-int parseUpdateMessage(ParserPair *pair) {
-    uint8_t *buffer = pair->first;
-    BGPPacket *parsed = pair->second;
 
+int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     BGPUpdateMessage *msg = new BGPUpdateMessage;
     msg->withdrawn_len = ntohs(getValue<uint16_t> (&buffer));
     std::vector<BGPRoute*> *withdrawn_routes = new std::vector<BGPRoute*>;
@@ -132,15 +134,15 @@ int parseUpdateMessage(ParserPair *pair) {
         }
 
         switch (attr->type) {
-            case 1: 
+            case 1:  // ORIGIN
                 attr->origin = getValue<uint8_t> (&buffer); 
                 pasred_attrib_len++; 
                 break;
-            case 2: { // TODO: 4b ASN
+            case 2: { // AS_PATH
                 BGPASPath *as_path = new BGPASPath;
                 as_path->type = getValue<uint8_t> (&buffer);
                 as_path->length = getValue<uint8_t> (&buffer);
-                std::vector<uint16_t> *path = new std::vector<uint16_t>;
+                std::vector<uint32_t> *path = new std::vector<uint32_t>;
                 for (int i = 0; i < as_path->length; i++)
                     path->push_back(ntohs(getValue<uint16_t> (&buffer)));
                 as_path->path = path;
@@ -148,27 +150,43 @@ int parseUpdateMessage(ParserPair *pair) {
                 pasred_attrib_len += 2 + 2 * as_path->length;
                 break;
             }
-            case 3: 
+            case 3: // NEXTHOP
                 attr->next_hop = getValue<uint32_t> (&buffer); 
                 pasred_attrib_len +=4; 
                 break;
-            case 4: 
+            case 4: // MED
                 attr->med = ntohl(getValue<uint32_t> (&buffer)); 
                 pasred_attrib_len +=4;
                 break;
-            case 5: 
+            case 5: // L_PREF
                 attr->local_pref = ntohl(getValue<uint32_t> (&buffer)); 
                 pasred_attrib_len +=4; 
                 break;
-            case 6: 
+            case 6: // AA
                 if (attr->length != 0) return -1;
                 else attr->atomic_aggregate = true;
                 break;
-            case 7:
+            case 7: // AGGR
                 attr->aggregator_asn = ntohs(getValue<uint16_t> (&buffer));
                 attr->aggregator = getValue<uint32_t> (&buffer);
                 pasred_attrib_len +=6;
                 break;
+            case 17: { // AS4_PATH
+                BGPASPath *as_path = new BGPASPath;
+                as_path->type = getValue<uint8_t> (&buffer);
+                as_path->length = getValue<uint8_t> (&buffer);
+                std::vector<uint32_t> *path = new std::vector<uint32_t>;
+                for (int i = 0; i < as_path->length; i++)
+                    path->push_back(ntohl(getValue<uint32_t> (&buffer)));
+                as_path->path = path;
+                attr->as4_path = as_path;
+                pasred_attrib_len += 2 + 4 * as_path->length;
+                break;
+            }
+            case 18: // AGGR4
+                attr->aggregator_asn4 = ntohl(getValue<uint32_t> (&buffer));
+                attr->aggregator = getValue<uint32_t> (&buffer);
+                pasred_attrib_len +=8;
             default: return -1;
         }
         attrs->push_back(attr);
@@ -197,20 +215,18 @@ int parseUpdateMessage(ParserPair *pair) {
     parsed->update = msg;
     return 0;
 }
-int parseNofiticationMessage(ParserPair *pair) {
+int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
 }
 
-int parseKeepaliveMessage(ParserPair *pair) {
+int parseKeepaliveMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
 }
 
 } // Parsers
 
 int Parse(uint8_t *buffer, BGPPacket *parsed) {
-    ParserPair pair = std::make_pair(buffer, parsed);
-
-    return Parsers::parseBanner(&pair);
+    return Parsers::parseHeader(buffer, parsed);
 }
 
 } // LibBGP

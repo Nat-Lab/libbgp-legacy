@@ -7,10 +7,21 @@
 
 namespace LibBGP {
 
+typedef struct BGPCapabilities {
+    uint8_t code;
+    uint8_t length;
+    uint8_t* value;
+
+    bool as4_support;
+    uint32_t my_asn;
+ 
+} BGPCapabilities;
+
 typedef struct BGPOptionalParameter {
     uint8_t type;
     uint8_t length;
     uint8_t *value;
+    BGPCapabilities *capability;
 } BGPOptionalParameter;
 
 typedef struct BGPOpenMessage {
@@ -25,7 +36,7 @@ typedef struct BGPOpenMessage {
 typedef struct BGPASPath {
     uint8_t type;
     uint8_t length;
-    std::vector<uint16_t> *path;
+    std::vector<uint32_t> *path;
 } BGPASPath;
 
 typedef struct BGPRoute {
@@ -43,12 +54,14 @@ typedef struct BGPPathAttribute {
 
     uint8_t origin;
     BGPASPath *as_path;
+    BGPASPath *as4_path;
     uint32_t next_hop;
     uint32_t med;
     uint32_t local_pref;
     bool atomic_aggregate;
     uint16_t aggregator_asn;
     uint32_t aggregator;
+    uint32_t aggregator_asn4;
 } BGPPathAttribute;
 
 typedef struct BGPUpdateMessage {
@@ -77,16 +90,14 @@ typedef struct BGPPacket {
     BGPNotificationMessage *notification;
 } BGPPacket;
 
-typedef std::pair<uint8_t*, BGPPacket*> ParserPair;
-
 namespace Parsers {
     template <typename T> T getValue(uint8_t **buffer);
-    int parseBanner(ParserPair *pair);
-    int parseHeader(ParserPair *pair);
-    int parseOpenMessage(ParserPair *pair);
-    int parseUpdateMessage(ParserPair *pair);
-    int parseNofiticationMessage(ParserPair *pair);
-    int parseKeepaliveMessage(ParserPair *pair);
+    int parseBanner(uint8_t *buffer, BGPPacket *parsed);
+    int parseHeader(uint8_t *buffer, BGPPacket *parsed);
+    int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed);
+    int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed);
+    int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed);
+    int parseKeepaliveMessage(uint8_t *buffer, BGPPacket *parsed);
 }
 
 int Parse(uint8_t *buffer, BGPPacket *parsed);
