@@ -1,8 +1,9 @@
 #ifndef LIBBGP_H
 #define LIBBGP_H
 
-#include <utility>
 #include <stdint.h>
+#include <stdlib.h>
+#include <utility>
 #include <vector>
 
 namespace LibBGP {
@@ -72,10 +73,6 @@ typedef struct BGPUpdateMessage {
     std::vector<BGPRoute*> *nlri;
 } BGPUpdateMessage;
 
-typedef struct BGPKeepaliveMessage {
-
-} BGPKeepaliveMessage;
-
 typedef struct BGPNotificationMessage {
 
 } BGPNotificationMessage;
@@ -86,20 +83,27 @@ typedef struct BGPPacket {
     uint8_t version;
     BGPOpenMessage *open;
     BGPUpdateMessage *update;
-    BGPKeepaliveMessage *keepalive;
     BGPNotificationMessage *notification;
 } BGPPacket;
 
 namespace Parsers {
     template <typename T> T getValue(uint8_t **buffer);
-    int parseBanner(uint8_t *buffer, BGPPacket *parsed);
     int parseHeader(uint8_t *buffer, BGPPacket *parsed);
     int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed);
     int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed);
     int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed);
-    int parseKeepaliveMessage(uint8_t *buffer, BGPPacket *parsed);
 }
 
+namespace Builders {
+    template <typename T> size_t putValue(uint8_t **buffer, T value);
+    int buildHeader(uint8_t *buffer, BGPPacket *source);
+    int buildOpenMessage(uint8_t *buffer, BGPPacket *source);
+    int buildUpdateMessage(uint8_t *buffer, BGPPacket *source);
+    int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source);
+    int buildKeepaliveMessage(uint8_t *buffer, BGPPacket *source);
+}
+
+int Build(uint8_t *buffer, BGPPacket *source);
 int Parse(uint8_t *buffer, BGPPacket *parsed);
 
 }

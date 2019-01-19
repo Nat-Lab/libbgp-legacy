@@ -30,11 +30,11 @@ int parseHeader (uint8_t *buffer, BGPPacket *parsed) {
 
     parsed->type = getValue<uint8_t> (&buffer);
 
-    switch(parsed->type) {
+    switch (parsed->type) {
         case 1: return parseOpenMessage(buffer, parsed); break;
         case 2: return parseUpdateMessage(buffer, parsed); break;
         case 3: return parseNofiticationMessage(buffer, parsed); break;
-        case 4: return parseKeepaliveMessage(buffer, parsed); break;
+        case 4: return 0;
         default: return -1;
     }
 
@@ -47,8 +47,6 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
     msg->hold_time = ntohs(getValue<uint16_t> (&buffer));
     msg->bgp_id = getValue<uint32_t> (&buffer);
     msg->opt_parm_len = getValue<uint8_t> (&buffer);
-
-    if (msg->opt_parm_len < 2) return -1;
 
     int parsed_parm_len = 0;
     std::vector<BGPOptionalParameter*> *parms = new std::vector<BGPOptionalParameter*>;
@@ -216,10 +214,6 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     return 0;
 }
 int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
-    // TODO
-}
-
-int parseKeepaliveMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
 }
 
