@@ -95,12 +95,13 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     while (parsed_routes_len < msg->withdrawn_len) {
         auto *route = new BGPRoute;
         route->length = getValue<uint8_t> (&buffer);
-        if (route->length > 32) return -1;
-        route->prefix = (uint8_t *) malloc(route->length);
-        memcpy(route->prefix, buffer, route->length);
 
-        buffer += route->length;
-        parsed_routes_len += route->length + 1;
+        int prefix_buffer_size = (route->length + 7) / 8;
+        if (route->length > 32) return -1;
+        memcpy(&route->prefix, buffer, prefix_buffer_size);
+
+        buffer += prefix_buffer_size;
+        parsed_routes_len += prefix_buffer_size + 1;
         withdrawn_routes->push_back(route);
     }
     
@@ -113,10 +114,10 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
         auto *attr = new BGPPathAttribute;
 
         uint8_t flags = getValue<uint8_t> (&buffer);
-        attr->optional = flags & 0x1;
-        attr->transitive = (flags >> 1) & 0x1;
-        attr->partial = (flags >> 2) & 0x1;
-        attr->extened = (flags >> 3) & 0x1;
+        attr->optional = flags >> 7 & 0x1;
+        attr->transitive = (flags >> 6) & 0x1;
+        attr->partial = (flags >> 5) & 0x1;
+        attr->extened = (flags >> 4) & 0x1;
 
         attr->type = getValue<uint8_t> (&buffer);
 
@@ -125,8 +126,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
 
         pasred_attrib_len += 2 + (attr->extened ? 2 : 1); // 2: uint8_t flags + uint8_t type
 
-
-        if (attr->length == 0 && attr->type != 6) { // 6: only attr allow 0 len. 
+        if (attr->length == 0 && attr->type != 6) { // 6: only attr always 0 len. 
             attrs->push_back(attr);
             continue;
         }
@@ -184,7 +184,8 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
             case 18: // AGGR4
                 attr->aggregator_asn4 = ntohl(getValue<uint32_t> (&buffer));
                 attr->aggregator = getValue<uint32_t> (&buffer);
-                pasred_attrib_len +=8;
+                pasred_attrib_len += 8;
+                break;
             default: return -1;
         }
         attrs->push_back(attr);
@@ -200,12 +201,13 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     while (parsed_routes_len < nlri_len) {
         auto *route = new BGPRoute;
         route->length = getValue<uint8_t> (&buffer);
-        if (route->length > 32) return -1;
-        route->prefix = (uint8_t *) malloc(route->length);
-        memcpy(route->prefix, buffer, route->length);
 
-        buffer += route->length;
-        parsed_routes_len += route->length + 1;
+        int prefix_buffer_size = (route->length + 7) / 8;
+        if (route->length > 32) return -1;
+        memcpy(&route->prefix, buffer, prefix_buffer_size);
+
+        buffer += prefix_buffer_size;
+        parsed_routes_len += prefix_buffer_size + 1;
         nlri->push_back(route);
     }
     msg->nlri = nlri;
