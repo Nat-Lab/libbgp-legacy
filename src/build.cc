@@ -79,7 +79,102 @@ int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
 }
 
 int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
+    int this_len = 0;
+    auto *msg = source->update;
 
+    this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->withdrawn_len
+    int withdrawn_len = 0;
+    auto *withdrawn_routes = msg->withdrawn_routes;
+    std::for_each(withdrawn_routes->begin(), withdrawn_routes->end(), 
+    [&withdrawn_len, &buffer](BGPRoute *route) {
+        withdrawn_len += putValue<uint8_t> (&buffer, route->length);
+        int prefix_buffer_size = (route->length + 7) / 8;
+        memcpy(buffer, &route->prefix, prefix_buffer_size);
+        withdrawn_len += prefix_buffer_size;
+        buffer += prefix_buffer_size;
+    });
+
+    this_len += withdrawn_len;
+    uint16_t withdrawn_len_n = htons(withdrawn_len);
+    memcpy(buffer - withdrawn_len - 2, &withdrawn_len_n, sizeof(uint16_t));
+
+    this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->path_attribute_length
+    int attrs_len = 0;
+    auto *attrs = msg->path_attribute;
+    std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](BGPPathAttribute *attr) {
+        uint8_t flags = 0;
+        flags |= (attr->optional << 7) | (attr->transitive << 6)| (attr->partial << 5) | (attr->extened << 4);
+        attrs_len += putValue<uint8_t> (&buffer, flags);
+        attrs_len += putValue<uint8_t> (&buffer, attr->type);
+
+        if (attr->extened) attrs_len += putValue<uint16_t> (&buffer, htons(0));
+        else attrs_len += putValue<uint8_t> (&buffer, 0);
+
+        int attr_len = 0;
+        switch (attr->type) {
+            case 1:  // ORIGIN
+                attr_len += putValue<uint8_t> (&buffer, attr->origin); 
+                break;
+            case 2: { // AS_PATH
+                auto *as_path = attr->as_path;
+                attr_len += putValue<uint8_t> (&buffer, as_path->type);
+                attr_len += putValue<uint8_t> (&buffer, as_path->length);
+
+                auto *path = as_path->path;
+                for (int i = 0; i < as_path->length; i++)
+                    attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
+                break;
+            }
+            case 3: // NEXTHOP
+                attr_len += putValue<uint32_t> (&buffer, attr->next_hop); 
+                break;
+            case 4: // MED
+                attr_len += putValue<uint32_t> (&buffer, attr->med); 
+                break;
+            case 5: // L_PREF
+                attr_len += putValue<uint32_t> (&buffer, attr->local_pref); 
+                break;
+            case 6: // AA
+                break;
+            case 7: // AGGR
+                attr_len += putValue<uint16_t> (&buffer, htons(attr->aggregator_asn));
+                attr_len += putValue<uint32_t> (&buffer, attr->aggregator);
+                break;
+            case 17: { // AS4_PATH
+                auto *as_path = attr->as4_path;
+                attr_len += putValue<uint8_t> (&buffer, as_path->type);
+                attr_len += putValue<uint8_t> (&buffer, as_path->length);
+
+                auto *path = as_path->path;
+                for (int i = 0; i < as_path->length; i++)
+                    attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
+                break;
+            }
+            case 18: // AGGR4
+                attr_len += putValue<uint32_t> (&buffer, htonl(attr->aggregator_asn));
+                attr_len += putValue<uint32_t> (&buffer, attr->aggregator);
+                break;
+            default: return -1;
+        } // attr->type switch
+
+        memcpy(buffer - attr_len - 1, &attr_len, sizeof(uint8_t));
+        attrs_len += attr_len;
+    }); // attr foreach
+
+    this_len += attrs_len;
+    uint16_t attrs_len_n = htons(attrs_len);
+    memcpy(buffer - attrs_len - 2, &attrs_len_n, sizeof(uint16_t));
+
+    auto *nlri = msg->nlri;
+    std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](BGPRoute *route) {
+        this_len += putValue<uint8_t> (&buffer, route->length);
+        int prefix_buffer_size = (route->length + 7) / 8;
+        memcpy(buffer, &route->prefix, prefix_buffer_size);
+        this_len += prefix_buffer_size;
+        buffer += prefix_buffer_size;
+    });
+
+    return this_len;
 }
 
 int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source) {

@@ -42,7 +42,7 @@ typedef struct BGPASPath {
 
 typedef struct BGPRoute {
     uint8_t length;
-    uint8_t* prefix;
+    uint32_t prefix;
 } BGPRoute;
 
 typedef struct BGPPathAttribute {
