@@ -8,7 +8,7 @@
 
 namespace LibBGP {
 
-typedef struct BGPCapabilities {
+typedef struct BGPCapability {
     uint8_t code;
     uint8_t length;
     uint8_t* value;
@@ -16,13 +16,13 @@ typedef struct BGPCapabilities {
     bool as4_support;
     uint32_t my_asn;
  
-} BGPCapabilities;
+} BGPCapability;
 
 typedef struct BGPOptionalParameter {
     uint8_t type;
     uint8_t length;
     uint8_t *value;
-    BGPCapabilities *capability;
+    std::vector<BGPCapability*> *capabilities;
 } BGPOptionalParameter;
 
 typedef struct BGPOpenMessage {

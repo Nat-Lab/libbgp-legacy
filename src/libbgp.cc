@@ -24,16 +24,19 @@ void BGPOpenMessage::set4BAsn(uint32_t my_asn) {
     if (!this->opt_parms) this->opt_parms = new std::vector<BGPOptionalParameter*>;
     auto parms = this->opt_parms;
     auto param = new BGPOptionalParameter;
-    auto capa = new BGPCapabilities;
+    auto capa = new BGPCapability;
+    auto caps = new std::vector<BGPCapability*>;
 
     param->type = 2;
     param->length = 6;
-    param->capability = capa;
+    param->capabilities = caps;
 
     capa->code = 65;
     capa->length = 4;
     capa->as4_support = true;
     capa->my_asn = my_asn;
+
+    caps->push_back(capa);
 
     this->opt_parms->push_back(param);
 }
@@ -42,22 +45,30 @@ void BGPOpenMessage::remove4BAsn() {
     if (!this->opt_parms) return;
 
     auto params = this->opt_parms;
-    auto remove = std::find_if(params->begin(), params->end(), [](BGPOptionalParameter *param){
-        return param->type == 2 && param->capability && param->capability->code == 65;
+    std::for_each(params->begin(), params->end(), [](BGPOptionalParameter *param){
+        if (param->type != 2 || !param->capabilities) return false;
+        auto caps = param->capabilities;
+        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](BGPCapability *cap) {
+            return cap->code == 65;
+        });
+        if (as4_cap != caps->end()) caps->erase(as4_cap);
     });
-
-    if (remove != params->end()) opt_parms->erase(remove);
 }
 
 uint32_t BGPOpenMessage::getAsn() {
     if (!this->opt_parms) return this->my_asn;
     auto params = this->opt_parms;
-    auto param = std::find_if(params->begin(), params->end(), [](BGPOptionalParameter *param){
-        return param->type == 2 && param->capability && param->capability->code == 65;
+    uint32_t my_asn = this->my_asn;
+    std::for_each(params->begin(), params->end(), [&my_asn](BGPOptionalParameter *param){
+        if (param->type != 2 || !param->capabilities) return false;
+        auto caps = param->capabilities;
+        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](BGPCapability *cap) {
+            return cap->code == 65;
+        });
+        if (as4_cap != caps->end()) my_asn = (*as4_cap)->my_asn;
     });
 
-    if (param != params->end()) return (*param)->capability->my_asn;
-    else return this->my_asn;
+    return my_asn;
 }
 
 uint32_t BGPUpdateMessage::getNexthop() {

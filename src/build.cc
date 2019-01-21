@@ -54,22 +54,29 @@ int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
             memcpy(buffer, param->value, param->length);
             buffer += param->length;
             parm_len += param->length;
-        } else if (param->type == 2 && param->capability) { // Capability
-            auto *cap = param->capability;
-            parm_len += putValue<uint8_t> (&buffer, cap->code);
-            parm_len += putValue<uint8_t> (&buffer, cap->length);
+        } else if (param->type == 2 && param->capabilities) { // Capability
+            auto *caps = param->capabilities;
+            int caps_len = 0;
+            std::for_each(caps->begin(), caps->end(), [&caps_len, &buffer](BGPCapability *cap) {
+                caps_len += putValue<uint8_t> (&buffer, cap->code);
 
-            if (cap->value) {
-                memcpy(buffer, cap->value, cap->length);
-                buffer += cap->length;
-                parm_len += cap->length;
-            } else switch (cap->code) {
-                case 65: {
-                    parm_len += putValue<uint32_t> (&buffer, htonl(cap->my_asn));
-                    break;
-                };
-                default: break;
-            };
+                if (cap->value) {
+                    caps_len += putValue<uint8_t> (&buffer, cap->length);
+                    memcpy(buffer, cap->value, cap->length);
+                    buffer += cap->length;
+                    caps_len += cap->length;
+                } else switch (cap->code) {
+                    case 65: {
+                        caps_len += putValue<uint8_t> (&buffer, 4);
+                        caps_len += putValue<uint32_t> (&buffer, htonl(cap->my_asn));
+                        break;
+                    };
+                    default: break;
+                }
+            });
+
+            memcpy(buffer - caps_len - 1, &caps_len, sizeof(uint8_t));
+            parm_len += caps_len;            
         }
     });
 

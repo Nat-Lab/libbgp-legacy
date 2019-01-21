@@ -59,22 +59,29 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
         memcpy(parm->value, buffer, parm->length);
 
         if (parm->type == 2) { // Capability
-            auto *cap = new BGPCapabilities;
-            cap->code = getValue<uint8_t> (&buffer);
-            cap->length = getValue<uint8_t> (&buffer);
-            cap->value = (uint8_t *) malloc(cap->length);
-            memcpy(cap->value, buffer, cap->length);
-
-            switch (cap->code) { // TODO: Other BGPCapabilities
-                case 65: { // 4b ASN
-                    cap->as4_support = true;
-                    cap->my_asn = ntohl(getValue<uint32_t> (&buffer));
-                    break;
+            auto *caps = new std::vector<BGPCapability*>;
+            int parsed_caps_len = 0;
+            while (parsed_caps_len < parm->length) {
+                auto *cap = new BGPCapability;
+                cap->code = getValue<uint8_t> (&buffer);
+                cap->length = getValue<uint8_t> (&buffer);
+                cap->value = (uint8_t *) malloc(cap->length);
+                memcpy(cap->value, buffer, cap->length);
+                
+                switch (cap->code) { // TODO: Other BGPCapabilities
+                    case 65: { // 4b ASN
+                        cap->as4_support = true;
+                        cap->my_asn = ntohl(getValue<uint32_t> (&buffer));
+                        break;
+                    }
+                    default: buffer += cap->length;
                 }
-                default: buffer += cap->length;
+
+                caps->push_back(cap);
+                parsed_caps_len += cap->length + 2; // +2: uint8_t code + uint8_t length
             }
 
-            parm->capability = cap;
+            parm->capabilities = caps;
         } else buffer += parm->length;
 
         parsed_parm_len += parm->length + 2; // +2: uint8_t type + uint8_t length
