@@ -32,6 +32,15 @@ typedef struct BGPOpenMessage {
     uint32_t bgp_id;
     uint8_t opt_parm_len;
     std::vector<BGPOptionalParameter*> *opt_parms;
+
+    /* a few methods for some common things, so that we don't have to read/make
+     * every opt_parms ourself.
+     */
+    BGPOpenMessage();
+    BGPOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id);
+    void set4BAsn(uint32_t my_asn);
+    void remove4BAsn();
+    uint32_t getAsn();
 } BGPOpenMessage;
 
 typedef struct BGPASPath {
@@ -71,6 +80,24 @@ typedef struct BGPUpdateMessage {
     uint16_t path_attribute_length;
     std::vector<BGPPathAttribute*> *path_attribute;
     std::vector<BGPRoute*> *nlri;
+
+    /* a few methods for some common things, so that we don't have to read/make
+     * every attribute ourself.
+     */
+    uint32_t getNexthop();
+    void setNexthop(uint32_t nexthop);
+
+    std::vector<uint32_t>* getAsPath();
+    void setAsPath(std::vector<uint32_t>* path);
+
+    uint8_t getOrigin();
+    void setOrigin(uint8_t origin);
+
+    uint32_t getMed();
+    void setMed(uint32_t med);
+
+    uint32_t getLocalPref();
+    void setLocalPref(uint32_t local_pref);
 } BGPUpdateMessage;
 
 typedef struct BGPNotificationMessage {
@@ -80,7 +107,6 @@ typedef struct BGPNotificationMessage {
 typedef struct BGPPacket {
     uint16_t length;
     uint8_t type;
-    uint8_t version;
     BGPOpenMessage *open;
     BGPUpdateMessage *update;
     BGPNotificationMessage *notification;
