@@ -41,7 +41,7 @@ int parseHeader (uint8_t *buffer, BGPPacket *parsed) {
 }
 
 int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
-    BGPOpenMessage *msg = new BGPOpenMessage;
+    auto *msg = new BGPOpenMessage;
     msg->version = getValue<uint8_t> (&buffer);
     msg->my_asn = ntohs(getValue<uint16_t> (&buffer));
     msg->hold_time = ntohs(getValue<uint16_t> (&buffer));
@@ -49,23 +49,23 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
     msg->opt_parm_len = getValue<uint8_t> (&buffer);
 
     int parsed_parm_len = 0;
-    std::vector<BGPOptionalParameter*> *parms = new std::vector<BGPOptionalParameter*>;
+    auto *parms = new std::vector<BGPOptionalParameter*>;
 
     while (parsed_parm_len < msg->opt_parm_len) {
-        BGPOptionalParameter *parm = new BGPOptionalParameter;
+        auto *parm = new BGPOptionalParameter;
         parm->type = getValue<uint8_t> (&buffer);
         parm->length = getValue<uint8_t> (&buffer);
         parm->value = (uint8_t *) malloc(parm->length);
         memcpy(parm->value, buffer, parm->length);
 
         if (parm->type == 2) { // Capability
-            BGPCapabilities *cap = new BGPCapabilities;
+            auto *cap = new BGPCapabilities;
             cap->code = getValue<uint8_t> (&buffer);
             cap->length = getValue<uint8_t> (&buffer);
             cap->value = (uint8_t *) malloc(cap->length);
             memcpy(cap->value, buffer, cap->length);
 
-            switch (cap->code) {
+            switch (cap->code) { // TODO: Other BGPCapabilities
                 case 65: { // 4b ASN
                     cap->as4_support = true;
                     cap->my_asn = ntohl(getValue<uint32_t> (&buffer));
@@ -77,7 +77,7 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
             parm->capability = cap;
         } else buffer += parm->length;
 
-        parsed_parm_len += parm->length + 2;
+        parsed_parm_len += parm->length + 2; // +2: uint8_t type + uint8_t length
         parms->push_back(parm);
     }
 
@@ -87,13 +87,13 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
 }
 
 int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
-    BGPUpdateMessage *msg = new BGPUpdateMessage;
+    auto *msg = new BGPUpdateMessage;
     msg->withdrawn_len = ntohs(getValue<uint16_t> (&buffer));
-    std::vector<BGPRoute*> *withdrawn_routes = new std::vector<BGPRoute*>;
+    auto *withdrawn_routes = new std::vector<BGPRoute*>;
 
     int parsed_routes_len = 0;
     while (parsed_routes_len < msg->withdrawn_len) {
-        BGPRoute *route = new BGPRoute;
+        auto *route = new BGPRoute;
         route->length = getValue<uint8_t> (&buffer);
         if (route->length > 32) return -1;
         route->prefix = (uint8_t *) malloc(route->length);
@@ -106,11 +106,11 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     
     msg->withdrawn_routes = withdrawn_routes;
     msg->path_attribute_length = ntohs(getValue<uint16_t> (&buffer));
-    std::vector<BGPPathAttribute*> *attrs = new std::vector<BGPPathAttribute*>;
+    auto *attrs = new std::vector<BGPPathAttribute*>;
 
     int pasred_attrib_len = 0;
     while (pasred_attrib_len < msg->path_attribute_length) {
-        BGPPathAttribute *attr = new BGPPathAttribute;
+        auto *attr = new BGPPathAttribute;
 
         uint8_t flags = getValue<uint8_t> (&buffer);
         attr->optional = flags & 0x1;
@@ -123,7 +123,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
         if (attr->extened) attr->length = ntohs(getValue<uint16_t> (&buffer));
         else attr->length = getValue<uint8_t> (&buffer);
 
-        pasred_attrib_len += 2 + (attr->extened ? 2 : 1);
+        pasred_attrib_len += 2 + (attr->extened ? 2 : 1); // 2: uint8_t flags + uint8_t type
 
 
         if (attr->length == 0 && attr->type != 6) { // 6: only attr allow 0 len. 
@@ -137,10 +137,10 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
                 pasred_attrib_len++; 
                 break;
             case 2: { // AS_PATH
-                BGPASPath *as_path = new BGPASPath;
+                auto *as_path = new BGPASPath;
                 as_path->type = getValue<uint8_t> (&buffer);
                 as_path->length = getValue<uint8_t> (&buffer);
-                std::vector<uint32_t> *path = new std::vector<uint32_t>;
+                auto *path = new std::vector<uint32_t>;
                 for (int i = 0; i < as_path->length; i++)
                     path->push_back(ntohs(getValue<uint16_t> (&buffer)));
                 as_path->path = path;
@@ -170,10 +170,10 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
                 pasred_attrib_len +=6;
                 break;
             case 17: { // AS4_PATH
-                BGPASPath *as_path = new BGPASPath;
+                auto *as_path = new BGPASPath;
                 as_path->type = getValue<uint8_t> (&buffer);
                 as_path->length = getValue<uint8_t> (&buffer);
-                std::vector<uint32_t> *path = new std::vector<uint32_t>;
+                auto *path = new std::vector<uint32_t>;
                 for (int i = 0; i < as_path->length; i++)
                     path->push_back(ntohl(getValue<uint32_t> (&buffer)));
                 as_path->path = path;
@@ -195,10 +195,10 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     int nlri_len = parsed->length - 23 - msg->withdrawn_len - msg->path_attribute_length;
     if (nlri_len < 0) return -1;
 
-    std::vector<BGPRoute*> *nlri = new std::vector<BGPRoute*>;
+    auto *nlri = new std::vector<BGPRoute*>;
     parsed_routes_len = 0;
     while (parsed_routes_len < nlri_len) {
-        BGPRoute *route = new BGPRoute;
+        auto *route = new BGPRoute;
         route->length = getValue<uint8_t> (&buffer);
         if (route->length > 32) return -1;
         route->prefix = (uint8_t *) malloc(route->length);

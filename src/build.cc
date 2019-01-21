@@ -1,8 +1,8 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <string.h>
-#include <utility>
 #include <stdlib.h>
+#include <algorithm>
 #include "libbgp.h"
 
 namespace LibBGP {
@@ -37,15 +37,45 @@ int buildHeader(uint8_t *buffer, BGPPacket *source) {
 
 int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
     int this_len = 0;
-    BGPOpenMessage *msg = source->open;
+    auto *msg = source->open;
 
     this_len += putValue<uint8_t> (&buffer, msg->version);
     this_len += putValue<uint16_t> (&buffer, htons(msg->my_asn));
     this_len += putValue<uint16_t> (&buffer, htons(msg->hold_time));
     this_len += putValue<uint32_t> (&buffer, msg->bgp_id);
-    this_len += putValue<uint8_t> (&buffer, msg->opt_parm_len);
+    this_len += putValue<uint8_t> (&buffer, 0);
 
-    return this_len;
+    int parm_len = 0;
+    auto *parms = msg->opt_parms;
+    std::for_each(parms->begin(), parms->end(), [&parm_len, &buffer](BGPOptionalParameter *param) {
+        parm_len += putValue<uint8_t> (&buffer, param->type);
+        parm_len += putValue<uint8_t> (&buffer, param->length);
+        if (param->value) {
+            memcpy(buffer, param->value, param->length);
+            buffer += param->length;
+            parm_len += param->length;
+        } else if (param->type == 2 && param->capability) { // Capability
+            auto *cap = param->capability;
+            parm_len += putValue<uint8_t> (&buffer, cap->code);
+            parm_len += putValue<uint8_t> (&buffer, cap->length);
+
+            if (cap->value) {
+                memcpy(buffer, cap->value, cap->length);
+                buffer += cap->length;
+                parm_len += cap->length;
+            } else switch (cap->code) {
+                case 65: {
+                    parm_len += putValue<uint32_t> (&buffer, htonl(cap->my_asn));
+                    break;
+                };
+                default: break;
+            };
+        }
+    });
+
+    memcpy(buffer - parm_len - 1, &parm_len, sizeof(uint8_t)); // put parm_len
+    
+    return this_len + parm_len;
 }
 
 int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
