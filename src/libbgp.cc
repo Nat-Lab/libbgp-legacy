@@ -48,7 +48,7 @@ void BGPOpenMessage::remove4BAsn() {
     std::for_each(params->begin(), params->end(), [](BGPOptionalParameter *param){
         if (param->type != 2 || !param->capabilities) return false;
         auto caps = param->capabilities;
-        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](BGPCapability *cap) {
+        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](auto cap) {
             return cap->code == 65;
         });
         if (as4_cap != caps->end()) caps->erase(as4_cap);
@@ -59,10 +59,10 @@ uint32_t BGPOpenMessage::getAsn() {
     if (!this->opt_parms) return this->my_asn;
     auto params = this->opt_parms;
     uint32_t my_asn = this->my_asn;
-    std::for_each(params->begin(), params->end(), [&my_asn](BGPOptionalParameter *param){
+    std::for_each(params->begin(), params->end(), [&my_asn](auto param){
         if (param->type != 2 || !param->capabilities) return false;
         auto caps = param->capabilities;
-        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](BGPCapability *cap) {
+        auto as4_cap = std::find_if(caps->begin(), caps->end(), [](auto cap) {
             return cap->code == 65;
         });
         if (as4_cap != caps->end()) my_asn = (*as4_cap)->my_asn;
@@ -72,19 +72,53 @@ uint32_t BGPOpenMessage::getAsn() {
 }
 
 uint32_t BGPUpdateMessage::getNexthop() {
+    if (!this->path_attribute) return 0;
+    auto attrs = this->path_attribute;
+    auto attr = std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
+        return attr->type == 3;
+    });
 
+    if (attr != attrs->end()) return (*attr)->next_hop;
+    else return 0;
 }
 
 void BGPUpdateMessage::setNexthop(uint32_t nexthop) {
+    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
+    auto attrs = this->path_attribute;
+    auto attr = std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
+        return attr->type == 3;
+    });
 
+    if (attr != attrs->end()) (*attr)->next_hop = nexthop;
+    else {
+        auto attr = new BGPPathAttribute;
+        attr->type = 3;
+        attr->length = 4;
+        attr->transitive = true;
+        attr->next_hop = nexthop;
+    }
 }
 
 std::vector<uint32_t>* BGPUpdateMessage::getAsPath() {
+    if (!this->path_attribute) return NULL;
+    auto attrs = this->path_attribute;
+    auto attr = std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
+        return attr->type == 17 || attr->type == 2;
+    });
 
+    if (attr == attrs->end()) return NULL;
+    
+    std::vector<uint32_t>* path;
+    while (attr != attrs->end()) {
+        if ((*attr)->type == 17) return (*attr)->as4_path->path;
+        if ((*attr)->type == 2) path = (*attr)->as_path->path;
+        attr++;
+    }
+    return path;
 }
 
 void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path) {
-
+    
 }
 
 uint8_t BGPUpdateMessage::getOrigin() {
