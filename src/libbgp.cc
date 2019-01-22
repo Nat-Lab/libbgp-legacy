@@ -96,6 +96,8 @@ void BGPUpdateMessage::setNexthop(uint32_t nexthop) {
         attr->length = 4;
         attr->transitive = true;
         attr->next_hop = nexthop;
+
+        attrs->push_back(attr);
     }
 }
 
@@ -117,8 +119,31 @@ std::vector<uint32_t>* BGPUpdateMessage::getAsPath() {
     return path;
 }
 
-void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path) {
-    
+void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path, bool as4) {
+    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
+    auto attrs = this->path_attribute;
+    auto attr = std::find_if(attrs->begin(), attrs->end(), [as4](auto attr) {
+        return attr->type == (as4 ? 17 : 2);
+    });
+
+    if (attr != attrs->end()) {
+        if (as4) (*attr)->as4_path->path = path;
+        else (*attr)->as_path->path = path;
+    }
+    else {
+        auto n_attr = new BGPPathAttribute;
+        auto n_path = new BGPASPath;
+        n_path->type = 2;
+        n_path->length = path->size();
+        n_path->path = path;
+
+        n_attr->type = (as4 ? 17 : 2);
+        n_attr->transitive = true;
+        if (as4) n_attr->as4_path = n_path;
+        else n_attr->as_path = n_path;
+
+        attrs->push_back(n_attr);
+    }
 }
 
 uint8_t BGPUpdateMessage::getOrigin() {

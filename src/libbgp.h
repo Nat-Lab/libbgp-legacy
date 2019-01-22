@@ -88,7 +88,7 @@ typedef struct BGPUpdateMessage {
     void setNexthop(uint32_t nexthop);
 
     std::vector<uint32_t>* getAsPath();
-    void setAsPath(std::vector<uint32_t>* path);
+    void setAsPath(std::vector<uint32_t>* path, bool as4);
 
     uint8_t getOrigin();
     void setOrigin(uint8_t origin);
