@@ -92,7 +92,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->withdrawn_len
     int withdrawn_len = 0;
     auto *withdrawn_routes = msg->withdrawn_routes;
-    std::for_each(withdrawn_routes->begin(), withdrawn_routes->end(), 
+    if (withdrawn_routes) std::for_each(withdrawn_routes->begin(), withdrawn_routes->end(), 
     [&withdrawn_len, &buffer](BGPRoute *route) {
         withdrawn_len += putValue<uint8_t> (&buffer, route->length);
         int prefix_buffer_size = (route->length + 7) / 8;
@@ -107,8 +107,8 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
 
     this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->path_attribute_length
     int attrs_len = 0;
-    auto *attrs = msg->path_attribute;
-    std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](BGPPathAttribute *attr) {
+    auto attrs = msg->path_attribute;
+    if (attrs) std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](BGPPathAttribute *attr) {
         uint8_t flags = 0;
         flags |= (attr->optional << 7) | (attr->transitive << 6)| (attr->partial << 5) | (attr->extened << 4);
         attrs_len += putValue<uint8_t> (&buffer, flags);
@@ -152,7 +152,6 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 auto *path = as_path->path;
                 attr_len += putValue<uint8_t> (&buffer, as_path->type);
                 attr_len += putValue<uint8_t> (&buffer, path->size());
-
                 
                 for (int i = 0; i < path->size(); i++)
                     attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
@@ -173,8 +172,8 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     uint16_t attrs_len_n = htons(attrs_len);
     memcpy(buffer - attrs_len - 2, &attrs_len_n, sizeof(uint16_t));
 
-    auto *nlri = msg->nlri;
-    std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](BGPRoute *route) {
+    auto nlri = msg->nlri;
+    if (nlri) std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](BGPRoute *route) {
         this_len += putValue<uint8_t> (&buffer, route->length);
         int prefix_buffer_size = (route->length + 7) / 8;
         memcpy(buffer, &route->prefix, prefix_buffer_size);
