@@ -124,11 +124,11 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 break;
             case 2: { // AS_PATH
                 auto *as_path = attr->as_path;
-                attr_len += putValue<uint8_t> (&buffer, as_path->type);
-                attr_len += putValue<uint8_t> (&buffer, as_path->length);
-
                 auto *path = as_path->path;
-                for (int i = 0; i < as_path->length; i++)
+                attr_len += putValue<uint8_t> (&buffer, as_path->type);
+                attr_len += putValue<uint8_t> (&buffer, path->size());
+                
+                for (int i = 0; i < path->size(); i++)
                     attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
                 break;
             }
@@ -149,11 +149,12 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 break;
             case 17: { // AS4_PATH
                 auto *as_path = attr->as4_path;
-                attr_len += putValue<uint8_t> (&buffer, as_path->type);
-                attr_len += putValue<uint8_t> (&buffer, as_path->length);
-
                 auto *path = as_path->path;
-                for (int i = 0; i < as_path->length; i++)
+                attr_len += putValue<uint8_t> (&buffer, as_path->type);
+                attr_len += putValue<uint8_t> (&buffer, path->size());
+
+                
+                for (int i = 0; i < path->size(); i++)
                     attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
                 break;
             }
