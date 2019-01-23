@@ -80,7 +80,7 @@ int main (void) {
             reply_msg->type = 4; // TYPE = KEEPALIVE
 
             int len = reply_msg->write(buffer);
-            write(fd_conn, buffer, len)x; // write KEEPALIVE
+            write(fd_conn, buffer, len); // write KEEPALIVE
 
             delete reply_msg;
 

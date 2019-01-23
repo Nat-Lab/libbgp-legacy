@@ -86,18 +86,18 @@ int main (void) {
 
             if (as_path) {
                 printf(", as_path:");
-                for (int i = 0; i < as_path->size(); i++) printf(" %d", as_path->at(i));
+                for (unsigned int i = 0; i < as_path->size(); i++) printf(" %d", as_path->at(i));
             }
 
             if (routes_drop->size() > 0) {
                 printf(", withdrawn_routes:");
-                for (int i = 0; i < routes_drop->size(); i++)
+                for (unsigned int i = 0; i < routes_drop->size(); i++)
                     printf(" %s/%d", print_ip(routes_drop->at(i)->prefix), routes_drop->at(i)->length);
             }
 
             if (routes_add->size() > 0) {
                 printf(", nlri:");
-                for (int i = 0; i < routes_add->size(); i++)
+                for (unsigned int i = 0; i < routes_add->size(); i++)
                     printf(" %s/%d", print_ip(routes_add->at(i)->prefix), routes_add->at(i)->length);
             }
 
