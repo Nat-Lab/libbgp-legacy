@@ -131,7 +131,6 @@ namespace Builders {
     int buildOpenMessage(uint8_t *buffer, BGPPacket *source);
     int buildUpdateMessage(uint8_t *buffer, BGPPacket *source);
     int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source);
-    int buildKeepaliveMessage(uint8_t *buffer, BGPPacket *source);
 }
 
 int Build(uint8_t *buffer, BGPPacket *source);

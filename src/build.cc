@@ -30,7 +30,7 @@ int buildHeader(uint8_t *buffer, BGPPacket *source) {
         case 1: return this_len + buildOpenMessage(buffer, source);
         case 2: return this_len + buildUpdateMessage(buffer, source);
         case 3: return this_len + buildNofiticationMessage(buffer, source);
-        case 4: return this_len + buildKeepaliveMessage(buffer, source);
+        case 4: return this_len;
         default: return this_len;
     }
 }
@@ -185,10 +185,6 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
 }
 
 int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source) {
-
-}
-
-int buildKeepaliveMessage(uint8_t *buffer, BGPPacket *source) {
 
 }
 
