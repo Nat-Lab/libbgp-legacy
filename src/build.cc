@@ -128,7 +128,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 attr_len += putValue<uint8_t> (&buffer, as_path->type);
                 attr_len += putValue<uint8_t> (&buffer, path->size());
                 
-                for (int i = 0; i < path->size(); i++)
+                for (unsigned int i = 0; i < path->size(); i++)
                     if (attr->peer_as4_ok) attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
                     else attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
                 break;
@@ -154,7 +154,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 attr_len += putValue<uint8_t> (&buffer, as_path->type);
                 attr_len += putValue<uint8_t> (&buffer, path->size());
                 
-                for (int i = 0; i < path->size(); i++)
+                for (unsigned int i = 0; i < path->size(); i++)
                     attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
                 break;
             }
@@ -162,11 +162,12 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 attr_len += putValue<uint32_t> (&buffer, htonl(attr->aggregator_asn));
                 attr_len += putValue<uint32_t> (&buffer, attr->aggregator);
                 break;
-            default: return -1;
+            default: return 0;
         } // attr->type switch
 
         memcpy(buffer - attr_len - 1, &attr_len, sizeof(uint8_t));
         attrs_len += attr_len;
+        return 0;
     }); // attr foreach
 
     this_len += attrs_len;
@@ -186,7 +187,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
 }
 
 int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source) {
-
+    return 0;
 }
 
 } // Builders

@@ -36,7 +36,6 @@ void BGPOpenMessage::set4BAsn(uint32_t my_asn) {
     this->remove4BAsn();
 
     if (!this->opt_parms) this->opt_parms = new std::vector<BGPOptionalParameter*>;
-    auto parms = this->opt_parms;
     auto param = new BGPOptionalParameter;
     auto capa = new BGPCapability;
     auto caps = new std::vector<BGPCapability*>;
@@ -66,6 +65,7 @@ void BGPOpenMessage::remove4BAsn() {
             return cap->code == 65;
         });
         if (as4_cap != caps->end()) caps->erase(as4_cap);
+        return true;
     });
 }
 
@@ -80,6 +80,7 @@ uint32_t BGPOpenMessage::getAsn() {
             return cap->code == 65;
         });
         if (as4_cap != caps->end()) my_asn = (*as4_cap)->my_asn;
+        return true;
     });
 
     return my_asn;

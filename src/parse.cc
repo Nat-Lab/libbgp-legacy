@@ -231,8 +231,10 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     parsed->update = msg;
     return 0;
 }
+
 int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
+    return 0;
 }
 
 } // Parsers
