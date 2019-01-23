@@ -59,6 +59,7 @@ typedef struct BGPPathAttribute {
     bool transitive;
     bool partial;
     bool extened;
+    bool peer_as4_ok;
     uint8_t type;
     uint16_t length;
 

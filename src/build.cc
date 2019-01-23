@@ -129,7 +129,8 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
                 attr_len += putValue<uint8_t> (&buffer, path->size());
                 
                 for (int i = 0; i < path->size(); i++)
-                    attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
+                    if (attr->peer_as4_ok) attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
+                    else attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
                 break;
             }
             case 3: // NEXTHOP

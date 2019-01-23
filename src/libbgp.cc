@@ -84,7 +84,7 @@ BGPPathAttribute* BGPUpdateMessage::getAttrib(uint8_t attrib_type) {
 
 void BGPUpdateMessage::addAttrib(BGPPathAttribute *attrib) {
     if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
-    else this->path_attribute->push_back(attrib);
+    this->path_attribute->push_back(attrib);
 }
 
 uint32_t BGPUpdateMessage::getNexthop() {
@@ -124,32 +124,52 @@ std::vector<uint32_t>* BGPUpdateMessage::getAsPath() {
     return path;
 }
 
-void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path, bool as4) {
-    auto attr = this->getAttrib(as4 ? 17 : 2);
+void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path, bool peer_as4_ok) {
+    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
+    auto attrs = this->path_attribute;
+    attrs->erase(std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
+        return attr->type == 17 || attr->type == 2;
+    }), attrs->end());
 
-    if (attr) {
-        if (as4) attr->as4_path->path = path; // maybe do delete? 
-        else attr->as_path->path = path;
-    }
-    else {
+    if (peer_as4_ok) {
         auto n_attr = new BGPPathAttribute;
         auto n_path = new BGPASPath;
         n_path->type = 2;
         n_path->length = path->size();
         n_path->path = path;
 
-        n_attr->type = (as4 ? 17 : 2);
+        n_attr->type = 2;
         n_attr->transitive = true;
-        if (as4) n_attr->as4_path = n_path;
-        else n_attr->as_path = n_path;
+        n_attr->as_path = n_path;
+        attrs->push_back(n_attr);
+    } else {
+        auto n_attr = new BGPPathAttribute;
+        auto n_path = new BGPASPath;
+        auto n_attr_as2 = new BGPPathAttribute;
+        auto n_path_as2 = new BGPASPath;
 
-        this->addAttrib(n_attr);
+        auto max_as = std::max_element(path->begin(), path->end());
+
+        if (max_as == path->end()) return; // WTF?
+
+        n_path->type = 17;
+        n_path->length = path->size();
+        n_path->path = path;
+
+        n_attr->transitive = true;
+        n_attr->optional = true;
+        n_attr->as4_path = n_path;
+
+        n_path_as2->path = (*max_as > 65535) ? new std::vector<uint32_t> (path->size(), 23456) : path;
+
+        n_attr_as2->type = 2;
+        n_attr_as2->transitive = true;
+        n_attr_as2->as_path = n_path_as2;
+        
+        attrs->push_back(n_attr_as2);
+        attrs->push_back(n_attr);
     }
 
-    if (as4) {
-        auto as2_path = new std::vector<uint32_t> (path->size(), 23456);
-        this->setAsPath(as2_path, false);
-    }
 }
 
 uint8_t BGPUpdateMessage::getOrigin() {
@@ -165,6 +185,7 @@ void BGPUpdateMessage::setOrigin(uint8_t origin) {
         auto n_attr = new BGPPathAttribute;
         n_attr->type = 1;
         n_attr->origin = origin;
+        n_attr->transitive = true;
         this->addAttrib(n_attr);
     }
 }
@@ -181,6 +202,7 @@ void BGPUpdateMessage::setMed(uint32_t med) {
         auto n_attr = new BGPPathAttribute;
         n_attr->type = 4;
         n_attr->med = med;
+        n_attr->optional = true;
         this->addAttrib(n_attr);
     }
 }
@@ -197,6 +219,7 @@ void BGPUpdateMessage::setLocalPref(uint32_t local_pref) {
         auto n_attr = new BGPPathAttribute;
         n_attr->type = 5;
         n_attr->local_pref = local_pref;
+        n_attr->optional = true;
         this->addAttrib(n_attr);
     }
 }
