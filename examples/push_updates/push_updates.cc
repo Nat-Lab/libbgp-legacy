@@ -9,7 +9,8 @@
 #include <algorithm>
 
 #define MY_ASN 65000
-#define MY_BGP_ID "172.32.0.2"
+#define MY_BGP_ID "172.31.0.2"
+#define NEXTHOP "172.31.0.2"
 
 void print_ip(uint32_t ip)
 {
@@ -25,6 +26,7 @@ int main (void) {
     int fd_sock, fd_conn;
     struct sockaddr_in server_addr, client_addr;
     uint8_t *buffer = (uint8_t *) malloc(4096);
+    bool update_sent = false;
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -33,14 +35,16 @@ int main (void) {
 
     fd_sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    bind(fd_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    int ret = bind(fd_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
+    if (ret < 0) return 1;
     listen(fd_sock, 1);
 
     socklen_t caddr_len = sizeof(client_addr);
     fd_conn = accept(fd_sock, (struct sockaddr *) &client_addr, &caddr_len);
 
     while (1) {
-        read(fd_conn, buffer, 4096);
+        ret = read(fd_conn, buffer, 4096);
+        if (ret < 0) return 1;
         auto bgp_pkt = new LibBGP::BGPPacket;
         LibBGP::Parse(buffer, bgp_pkt);
 
@@ -65,43 +69,6 @@ int main (void) {
 
             int len = LibBGP::Build(buffer, reply_msg);
             write(fd_conn, buffer, len); // write OPEN
-
-            delete reply_msg;
-        }
-
-        if (bgp_pkt->type == 2) { // UPDATE
-             if (!bgp_pkt->update) {
-                printf("received an UPDATE message, but failed to parse, ignore.");
-                continue;
-            }
-
-            auto update_msg = bgp_pkt->update;
-            auto as_path = update_msg->getAsPath();
-            auto routes_drop = update_msg->withdrawn_routes;
-            auto routes_add = update_msg->nlri;
-            auto next_hop = update_msg->getNexthop();
-
-            printf("UPDATE received, next_hop: ");
-            print_ip(next_hop);
-            if (as_path) {
-                printf(", as_path:");
-                for (int i = 0; i < as_path->size(); i++) printf(" %d", as_path->at(i));
-            }
-            printf(", withdrawn_routes:");
-            if (routes_drop->size() == 0) printf(" <empty>");
-            for (int i = 0; i < routes_drop->size(); i++) {
-                printf(" ");
-                print_ip(routes_drop->at(i)->prefix);
-                printf("/%d", routes_drop->at(i)->length);
-            }
-            printf(", nlri:");
-            if (routes_add->size() == 0) printf(" <empty>");
-            for (int i = 0; i < routes_add->size(); i++) {
-                printf(" ");
-                print_ip(routes_add->at(i)->prefix);
-                printf("/%d", routes_add->at(i)->length);
-            }
-            printf(".\n");
         }
 
         if (bgp_pkt->type == 4) { // KEEPALIVE
@@ -112,7 +79,24 @@ int main (void) {
             int len = LibBGP::Build(buffer, reply_msg);
             write(fd_conn, buffer, len); // write KEEPALIVE
 
-            delete reply_msg;
+            if (!update_sent) { // write update once open_cfm KEEPALIVE
+                printf("Sending update 10.114.0.0/16 to peer.\n");
+                update_sent = true;
+                auto update_msg = new LibBGP::BGPPacket;
+                auto update = new LibBGP::BGPUpdateMessage;
+                update_msg->type = 2; // UPDATE
+                uint32_t prefix_add, nexthop;
+                inet_pton(AF_INET, NEXTHOP, &nexthop);
+                inet_pton(AF_INET, "10.114.0.0", &prefix_add);
+                update->setNexthop(nexthop);
+                update->addPrefix(prefix_add, 16, false); // (prefix, len, is_withdraw)
+                update->setOrigin(0);
+                auto as_path = new std::vector<uint32_t> {MY_ASN};
+                update->setAsPath(as_path, true); // (path, is_4b)
+                update_msg->update = update;
+                int len = Build(buffer, update_msg);
+                write(fd_conn, buffer, len);
+            }
         }
 
         delete bgp_pkt;
