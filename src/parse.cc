@@ -148,11 +148,16 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
                 as_path->type = getValue<uint8_t> (&buffer);
                 as_path->length = getValue<uint8_t> (&buffer);
                 auto *path = new std::vector<uint32_t>;
+
+                // sometime that happen.
+                bool as4_in_path = (4 * as_path->length) == (attr->length - 2);
+
                 for (int i = 0; i < as_path->length; i++)
-                    path->push_back(ntohs(getValue<uint16_t> (&buffer)));
+                    if (as4_in_path) path->push_back(ntohl(getValue<uint32_t> (&buffer)));
+                    else path->push_back(ntohs(getValue<uint16_t> (&buffer)));
                 as_path->path = path;
                 attr->as_path = as_path;
-                pasred_attrib_len += 2 + 2 * as_path->length;
+                pasred_attrib_len += 2 + (as4_in_path ? 4 : 2) * as_path->length;
                 break;
             }
             case 3: // NEXTHOP
@@ -193,7 +198,11 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
                 attr->aggregator = getValue<uint32_t> (&buffer);
                 pasred_attrib_len += 8;
                 break;
-            default: return -1;
+            default: {
+                pasred_attrib_len += attr->length;
+                buffer += attr->length;
+                break;
+            };
         }
         attrs->push_back(attr);
     } // attr parse loop
