@@ -47,7 +47,7 @@ int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
 
     int parm_len = 0;
     auto parms = msg->opt_parms;
-    if (parms) std::for_each(parms->begin(), parms->end(), [&parm_len, &buffer](auto param) {
+    if (parms) std::for_each(parms->begin(), parms->end(), [&parm_len, &buffer](BGPOptionalParameter *param) {
         parm_len += putValue<uint8_t> (&buffer, param->type);
         parm_len += putValue<uint8_t> (&buffer, param->length);
         if (param->value) {
@@ -57,7 +57,7 @@ int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
         } else if (param->type == 2 && param->capabilities) { // Capability
             auto *caps = param->capabilities;
             int caps_len = 0;
-            std::for_each(caps->begin(), caps->end(), [&caps_len, &buffer](auto cap) {
+            std::for_each(caps->begin(), caps->end(), [&caps_len, &buffer](BGPCapability *cap) {
                 caps_len += putValue<uint8_t> (&buffer, cap->code);
 
                 if (cap->value) {
@@ -93,7 +93,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     int withdrawn_len = 0;
     auto *withdrawn_routes = msg->withdrawn_routes;
     if (withdrawn_routes) std::for_each(withdrawn_routes->begin(), withdrawn_routes->end(), 
-    [&withdrawn_len, &buffer](auto route) {
+    [&withdrawn_len, &buffer](BGPRoute *route) {
         withdrawn_len += putValue<uint8_t> (&buffer, route->length);
         int prefix_buffer_size = (route->length + 7) / 8;
         memcpy(buffer, &route->prefix, prefix_buffer_size);
@@ -108,7 +108,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->path_attribute_length
     int attrs_len = 0;
     auto attrs = msg->path_attribute;
-    if (attrs) std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](auto attr) {
+    if (attrs) std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](BGPPathAttribute *attr) {
         uint8_t flags = 0;
         flags |= (attr->optional << 7) | (attr->transitive << 6)| (attr->partial << 5) | (attr->extened << 4);
         attrs_len += putValue<uint8_t> (&buffer, flags);
@@ -174,7 +174,7 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     memcpy(buffer - attrs_len - 2, &attrs_len_n, sizeof(uint16_t));
 
     auto nlri = msg->nlri;
-    if (nlri) std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](auto route) {
+    if (nlri) std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](BGPRoute *route) {
         this_len += putValue<uint8_t> (&buffer, route->length);
         int prefix_buffer_size = (route->length + 7) / 8;
         memcpy(buffer, &route->prefix, prefix_buffer_size);
