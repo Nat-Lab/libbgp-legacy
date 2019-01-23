@@ -84,6 +84,9 @@ typedef struct BGPUpdateMessage {
     /* a few methods for some common things, so that we don't have to read/make
      * every attribute ourself.
      */
+    BGPPathAttribute* getAttrib(uint8_t attrib_type);
+    void addAttrib(BGPPathAttribute *attrib);
+
     uint32_t getNexthop();
     void setNexthop(uint32_t nexthop);
 

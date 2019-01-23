@@ -71,33 +71,38 @@ uint32_t BGPOpenMessage::getAsn() {
     return my_asn;
 }
 
-uint32_t BGPUpdateMessage::getNexthop() {
-    if (!this->path_attribute) return 0;
+BGPPathAttribute* BGPUpdateMessage::getAttrib(uint8_t attrib_type) {
+    if (!this->path_attribute) return NULL;
     auto attrs = this->path_attribute;
-    auto attr = std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
-        return attr->type == 3;
+    auto attr = std::find_if(attrs->begin(), attrs->end(), [attrib_type](auto attr) {
+        return attr->type == attrib_type;
     });
 
-    if (attr != attrs->end()) return (*attr)->next_hop;
-    else return 0;
+    if (attr != attrs->end()) return *attr;
+    else return NULL;
+}
+
+void BGPUpdateMessage::addAttrib(BGPPathAttribute *attrib) {
+    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
+    else this->path_attribute->push_back(attrib);
+}
+
+uint32_t BGPUpdateMessage::getNexthop() {
+    auto attr = this->getAttrib(3);
+    return attr ? attr->next_hop : 0;
 }
 
 void BGPUpdateMessage::setNexthop(uint32_t nexthop) {
-    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
-    auto attrs = this->path_attribute;
-    auto attr = std::find_if(attrs->begin(), attrs->end(), [](auto attr) {
-        return attr->type == 3;
-    });
+    auto attr = this->getAttrib(3);
 
-    if (attr != attrs->end()) (*attr)->next_hop = nexthop;
+    if (attr) attr->next_hop = nexthop;
     else {
         auto attr = new BGPPathAttribute;
         attr->type = 3;
         attr->length = 4;
         attr->transitive = true;
         attr->next_hop = nexthop;
-
-        attrs->push_back(attr);
+        this->addAttrib(attr);
     }
 }
 
@@ -120,15 +125,11 @@ std::vector<uint32_t>* BGPUpdateMessage::getAsPath() {
 }
 
 void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path, bool as4) {
-    if (!this->path_attribute) this->path_attribute = new std::vector<BGPPathAttribute*>;
-    auto attrs = this->path_attribute;
-    auto attr = std::find_if(attrs->begin(), attrs->end(), [as4](auto attr) {
-        return attr->type == (as4 ? 17 : 2);
-    });
+    auto attr = this->getAttrib(as4 ? 17 : 2);
 
-    if (attr != attrs->end()) {
-        if (as4) (*attr)->as4_path->path = path;
-        else (*attr)->as_path->path = path;
+    if (attr) {
+        if (as4) attr->as4_path->path = path; // maybe do delete? 
+        else attr->as_path->path = path;
     }
     else {
         auto n_attr = new BGPPathAttribute;
@@ -142,32 +143,62 @@ void BGPUpdateMessage::setAsPath(std::vector<uint32_t>* path, bool as4) {
         if (as4) n_attr->as4_path = n_path;
         else n_attr->as_path = n_path;
 
-        attrs->push_back(n_attr);
+        this->addAttrib(n_attr);
+    }
+
+    if (as4) {
+        auto as2_path = new std::vector<uint32_t> (path->size(), 23456);
+        this->setAsPath(as2_path, false);
     }
 }
 
 uint8_t BGPUpdateMessage::getOrigin() {
-
+    auto attr = this->getAttrib(1);
+    return attr ? attr->origin : 0; // TODO not 0 when not found
 }
 
 void BGPUpdateMessage::setOrigin(uint8_t origin) {
+    auto attr = this->getAttrib(1);
 
+    if (attr) attr->origin = origin;
+    else {
+        auto n_attr = new BGPPathAttribute;
+        n_attr->type = 1;
+        n_attr->origin = origin;
+        this->addAttrib(n_attr);
+    }
 }
 
 uint32_t BGPUpdateMessage::getMed() {
-
+    auto attr = this->getAttrib(4);
+    return attr ? attr->med : 0; // TODO not 0
 }
 
 void BGPUpdateMessage::setMed(uint32_t med) {
-
+    auto attr = this->getAttrib(4);
+    if (attr) attr->med = med;
+    else {
+        auto n_attr = new BGPPathAttribute;
+        n_attr->type = 4;
+        n_attr->med = med;
+        this->addAttrib(n_attr);
+    }
 }
 
 uint32_t BGPUpdateMessage::getLocalPref() {
-
+    auto attr = this->getAttrib(5);
+    return attr ? attr->local_pref : 0; // TODO not 0
 }
 
 void BGPUpdateMessage::setLocalPref(uint32_t local_pref) {
-
+    auto attr = this->getAttrib(5);
+    if (attr) attr->local_pref = local_pref;
+    else {
+        auto n_attr = new BGPPathAttribute;
+        n_attr->type = 5;
+        n_attr->local_pref = local_pref;
+        this->addAttrib(n_attr);
+    }
 }
 
 }
