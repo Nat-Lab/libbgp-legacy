@@ -116,6 +116,11 @@ typedef struct BGPPacket {
     BGPOpenMessage *open;
     BGPUpdateMessage *update;
     BGPNotificationMessage *notification;
+
+    BGPPacket();
+    BGPPacket(uint8_t *buffer);
+    int write(uint8_t *buffer);
+    int read(uint8_t *buffer);
 } BGPPacket;
 
 namespace Parsers {

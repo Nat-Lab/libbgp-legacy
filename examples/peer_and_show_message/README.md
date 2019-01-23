@@ -10,9 +10,12 @@ Usage:
 Example output:
 ```
 % sudo ./peer_and_show    
-OPEN from AS396303, ID: 172.31.0.1
+OPEN from AS396303, ID: 172.31.0.1.
 KEEPALIVE received.
-UPDATE received, next_hop: 172.31.0.3, as_path: 396303, withdrawn_routes: <empty>, nlri: 141.193.21.0/24.
-UPDATE received, next_hop: 0.0.0.0, withdrawn_routes: 141.193.21.0/24, nlri: <empty>.
+UPDATE received, next_hop: 172.31.0.3, as_path: 396303, nlri: 141.193.21.0/24 141.193.21.16/28.
+UPDATE received, withdrawn_routes: 141.193.21.0/24 141.193.21.16/28.
+KEEPALIVE received.
+UPDATE received, next_hop: 172.31.0.3, as_path: 396303 396303, nlri: 141.193.21.16/28.
+UPDATE received, next_hop: 172.31.0.1, as_path: 396303, nlri: 141.193.21.16/28.
 ^C
 ```

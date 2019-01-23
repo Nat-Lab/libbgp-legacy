@@ -11,14 +11,16 @@
 #define MY_ASN 65000
 #define MY_BGP_ID "172.32.0.2"
 
-void print_ip(uint32_t ip)
+char* print_ip(uint32_t ip)
 {
     unsigned char bytes[4];
+    char *ip_str = (char *) malloc(16);
     bytes[0] = ip & 0xFF;
     bytes[1] = (ip >> 8) & 0xFF;
     bytes[2] = (ip >> 16) & 0xFF;
     bytes[3] = (ip >> 24) & 0xFF;   
-    printf("%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);        
+    sprintf(ip_str, "%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);
+    return ip_str;
 }
 
 int main (void) {
@@ -41,8 +43,7 @@ int main (void) {
 
     while (1) {
         read(fd_conn, buffer, 4096);
-        auto bgp_pkt = new LibBGP::BGPPacket;
-        LibBGP::Parse(buffer, bgp_pkt);
+        auto bgp_pkt = new LibBGP::BGPPacket(buffer);
 
         if (bgp_pkt->type == 1) { // recevied an OPEN
             if (!bgp_pkt->open) {
@@ -50,9 +51,7 @@ int main (void) {
                 continue;
             }
             auto open_msg = bgp_pkt->open;
-            printf("OPEN from AS%d, ID: ", open_msg->getAsn());
-            print_ip(open_msg->bgp_id);
-            printf("\n");
+            printf("OPEN from AS%d, ID: %s.\n", open_msg->getAsn(), print_ip(open_msg->bgp_id));
 
             // reply with open
             auto reply_msg = new LibBGP::BGPPacket;
@@ -63,7 +62,7 @@ int main (void) {
 
             reply_msg->open = new LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
 
-            int len = LibBGP::Build(buffer, reply_msg);
+            int len = reply_msg->write(buffer);
             write(fd_conn, buffer, len); // write OPEN
 
             delete reply_msg;
@@ -81,26 +80,27 @@ int main (void) {
             auto routes_add = update_msg->nlri;
             auto next_hop = update_msg->getNexthop();
 
-            printf("UPDATE received, next_hop: ");
-            print_ip(next_hop);
+            printf("UPDATE received");
+
+            if (next_hop) printf(", next_hop: %s", print_ip(next_hop));
+
             if (as_path) {
                 printf(", as_path:");
                 for (int i = 0; i < as_path->size(); i++) printf(" %d", as_path->at(i));
             }
-            printf(", withdrawn_routes:");
-            if (routes_drop->size() == 0) printf(" <empty>");
-            for (int i = 0; i < routes_drop->size(); i++) {
-                printf(" ");
-                print_ip(routes_drop->at(i)->prefix);
-                printf("/%d", routes_drop->at(i)->length);
+
+            if (routes_drop->size() > 0) {
+                printf(", withdrawn_routes:");
+                for (int i = 0; i < routes_drop->size(); i++)
+                    printf(" %s/%d", print_ip(routes_drop->at(i)->prefix), routes_drop->at(i)->length);
             }
-            printf(", nlri:");
-            if (routes_add->size() == 0) printf(" <empty>");
-            for (int i = 0; i < routes_add->size(); i++) {
-                printf(" ");
-                print_ip(routes_add->at(i)->prefix);
-                printf("/%d", routes_add->at(i)->length);
+
+            if (routes_add->size() > 0) {
+                printf(", nlri:");
+                for (int i = 0; i < routes_add->size(); i++)
+                    printf(" %s/%d", print_ip(routes_add->at(i)->prefix), routes_add->at(i)->length);
             }
+
             printf(".\n");
         }
 
@@ -109,7 +109,7 @@ int main (void) {
             auto reply_msg = new LibBGP::BGPPacket;
             reply_msg->type = 4; // TYPE = KEEPALIVE
 
-            int len = LibBGP::Build(buffer, reply_msg);
+            int len = reply_msg->write(buffer);
             write(fd_conn, buffer, len); // write KEEPALIVE
 
             delete reply_msg;

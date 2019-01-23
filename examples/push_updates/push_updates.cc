@@ -12,14 +12,16 @@
 #define MY_BGP_ID "172.31.0.2"
 #define NEXTHOP "172.31.0.2"
 
-void print_ip(uint32_t ip)
+char* print_ip(uint32_t ip)
 {
     unsigned char bytes[4];
+    char *ip_str = (char *) malloc(16);
     bytes[0] = ip & 0xFF;
     bytes[1] = (ip >> 8) & 0xFF;
     bytes[2] = (ip >> 16) & 0xFF;
     bytes[3] = (ip >> 24) & 0xFF;   
-    printf("%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);        
+    sprintf(ip_str, "%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3]);
+    return ip_str;
 }
 
 int main (void) {
@@ -45,8 +47,7 @@ int main (void) {
     while (1) {
         ret = read(fd_conn, buffer, 4096);
         if (ret < 0) return 1;
-        auto bgp_pkt = new LibBGP::BGPPacket;
-        LibBGP::Parse(buffer, bgp_pkt);
+        auto bgp_pkt = new LibBGP::BGPPacket(buffer);
 
         if (bgp_pkt->type == 1) { // recevied an OPEN
             if (!bgp_pkt->open) {
@@ -54,9 +55,9 @@ int main (void) {
                 continue;
             }
             auto open_msg = bgp_pkt->open;
-            printf("OPEN from AS%d, ID: ", open_msg->getAsn());
-            print_ip(open_msg->bgp_id);
-            printf("\n");
+            printf("OPEN from AS%d, ID: %s\n", open_msg->getAsn(), print_ip(open_msg->bgp_id));
+            //print_ip(open_msg->bgp_id);
+            //printf("\n");
 
             // reply with open
             auto reply_msg = new LibBGP::BGPPacket;
@@ -67,8 +68,10 @@ int main (void) {
 
             reply_msg->open = new LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
 
-            int len = LibBGP::Build(buffer, reply_msg);
+            int len = reply_msg->write(buffer);
             write(fd_conn, buffer, len); // write OPEN
+
+            delete reply_msg;
         }
 
         if (bgp_pkt->type == 4) { // KEEPALIVE
@@ -76,8 +79,10 @@ int main (void) {
             auto reply_msg = new LibBGP::BGPPacket;
             reply_msg->type = 4; // TYPE = KEEPALIVE
 
-            int len = LibBGP::Build(buffer, reply_msg);
-            write(fd_conn, buffer, len); // write KEEPALIVE
+            int len = reply_msg->write(buffer);
+            write(fd_conn, buffer, len)x; // write KEEPALIVE
+
+            delete reply_msg;
 
             if (!update_sent) { // write update once open_cfm KEEPALIVE
                 printf("Sending update 10.114.0.0/16 to peer.\n");
@@ -94,8 +99,10 @@ int main (void) {
                 auto as_path = new std::vector<uint32_t> {MY_ASN};
                 update->setAsPath(as_path, true); // (path, is_4b)
                 update_msg->update = update;
-                int len = Build(buffer, update_msg);
+                len = update_msg->write(buffer);
                 write(fd_conn, buffer, len);
+
+                delete update_msg;
             }
         }
 

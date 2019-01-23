@@ -8,6 +8,20 @@
 
 namespace LibBGP {
 
+BGPPacket::BGPPacket() {}
+
+BGPPacket::BGPPacket(uint8_t *buffer) {
+    this->read(buffer);
+}
+
+int BGPPacket::write(uint8_t *buffer) {
+    return Build(buffer, this);
+}
+
+int BGPPacket::read(uint8_t *buffer) {
+    return Parse(buffer, this);
+}
+
 BGPOpenMessage::BGPOpenMessage() {}
 
 BGPOpenMessage::BGPOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) {
