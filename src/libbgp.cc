@@ -201,4 +201,17 @@ void BGPUpdateMessage::setLocalPref(uint32_t local_pref) {
     }
 }
 
+void BGPUpdateMessage::addPrefix(uint32_t prefix, uint8_t length, bool is_withdraw) {
+    auto route = new BGPRoute;
+    route->prefix = prefix;
+    route->length = length;
+    if (is_withdraw) {
+        if (!this->withdrawn_routes) this->withdrawn_routes = new std::vector<BGPRoute*>;
+        this->withdrawn_routes->push_back(route);
+    } else {
+        if (!this->nlri) this->nlri = new std::vector<BGPRoute*>;
+        this->nlri->push_back(route);
+    }
+}
+
 }

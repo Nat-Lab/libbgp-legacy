@@ -101,6 +101,8 @@ typedef struct BGPUpdateMessage {
 
     uint32_t getLocalPref();
     void setLocalPref(uint32_t local_pref);
+
+    void addPrefix(uint32_t prefix, uint8_t length, bool is_withdraw);
 } BGPUpdateMessage;
 
 typedef struct BGPNotificationMessage {
