@@ -21,7 +21,7 @@ int BGPPacket::write(uint8_t *buffer) {
     return Build(buffer, this);
 }
 
-int BGPPacket::read(uint8_t *buffer) {
+uint8_t* BGPPacket::read(uint8_t *buffer) {
     return Parse(buffer, this);
 }
 

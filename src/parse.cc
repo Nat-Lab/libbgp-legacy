@@ -18,15 +18,15 @@ template <typename T> T getValue(uint8_t **buffer) {
 
 }
 
-int parseHeader (uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseHeader (uint8_t *buffer, BGPPacket *parsed) {
     if (memcmp(buffer, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0)
-        return -1;
+        return buffer;
 
     buffer += 16;
 
     parsed->length = ntohs(getValue<uint16_t> (&buffer));
 
-    if (parsed->length > 4096) return -1;
+    if (parsed->length > 4096) return buffer;
 
     parsed->type = getValue<uint8_t> (&buffer);
 
@@ -34,13 +34,13 @@ int parseHeader (uint8_t *buffer, BGPPacket *parsed) {
         case 1: return parseOpenMessage(buffer, parsed); break;
         case 2: return parseUpdateMessage(buffer, parsed); break;
         case 3: return parseNofiticationMessage(buffer, parsed); break;
-        case 4: return 0;
-        default: return -1;
+        case 4: return buffer;
+        default: return buffer;
     }
 
 }
 
-int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
     auto *msg = new BGPOpenMessage;
     msg->version = getValue<uint8_t> (&buffer);
     msg->my_asn = ntohs(getValue<uint16_t> (&buffer));
@@ -90,10 +90,10 @@ int parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
 
     msg->opt_parms = parms;
     parsed->open = msg;
-    return 0;
+    return buffer;
 }
 
-int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     auto *msg = new BGPUpdateMessage;
     msg->withdrawn_len = ntohs(getValue<uint16_t> (&buffer));
     auto *withdrawn_routes = new std::vector<BGPRoute*>;
@@ -104,7 +104,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
         route->length = getValue<uint8_t> (&buffer);
 
         int prefix_buffer_size = (route->length + 7) / 8;
-        if (route->length > 32) return -1;
+        if (route->length > 32) return buffer;
         memcpy(&route->prefix, buffer, prefix_buffer_size);
 
         buffer += prefix_buffer_size;
@@ -173,7 +173,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
                 pasred_attrib_len +=4; 
                 break;
             case 6: // AA
-                if (attr->length != 0) return -1;
+                if (attr->length != 0) return buffer;
                 else attr->atomic_aggregate = true;
                 break;
             case 7: // AGGR
@@ -210,7 +210,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     msg->path_attribute = attrs;
 
     int nlri_len = parsed->length - 23 - msg->withdrawn_len - msg->path_attribute_length;
-    if (nlri_len < 0) return -1;
+    if (nlri_len < 0) return buffer;
 
     auto *nlri = new std::vector<BGPRoute*>;
     parsed_routes_len = 0;
@@ -219,7 +219,7 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
         route->length = getValue<uint8_t> (&buffer);
 
         int prefix_buffer_size = (route->length + 7) / 8;
-        if (route->length > 32) return -1;
+        if (route->length > 32) return buffer;
         memcpy(&route->prefix, buffer, prefix_buffer_size);
 
         buffer += prefix_buffer_size;
@@ -229,17 +229,17 @@ int parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     msg->nlri = nlri;
 
     parsed->update = msg;
-    return 0;
+    return buffer;
 }
 
-int parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
-    return 0;
+    return buffer;
 }
 
 } // Parsers
 
-int Parse(uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* Parse(uint8_t *buffer, BGPPacket *parsed) {
     return Parsers::parseHeader(buffer, parsed);
 }
 
