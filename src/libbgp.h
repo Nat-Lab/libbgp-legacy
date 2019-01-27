@@ -16,6 +16,7 @@ typedef struct BGPCapability {
     bool as4_support;
     uint32_t my_asn;
  
+    BGPCapability();
 } BGPCapability;
 
 typedef struct BGPOptionalParameter {
@@ -23,6 +24,8 @@ typedef struct BGPOptionalParameter {
     uint8_t length;
     uint8_t *value;
     std::vector<BGPCapability*> *capabilities;
+
+    BGPOptionalParameter();
 } BGPOptionalParameter;
 
 typedef struct BGPOpenMessage {
@@ -47,11 +50,15 @@ typedef struct BGPASPath {
     uint8_t type;
     uint8_t length;
     std::vector<uint32_t> *path;
+
+    BGPASPath();
 } BGPASPath;
 
 typedef struct BGPRoute {
     uint8_t length;
     uint32_t prefix;
+
+    BGPRoute();
 } BGPRoute;
 
 typedef struct BGPPathAttribute {
@@ -73,6 +80,8 @@ typedef struct BGPPathAttribute {
     uint16_t aggregator_asn;
     uint32_t aggregator;
     uint32_t aggregator_asn4;
+
+    BGPPathAttribute();
 } BGPPathAttribute;
 
 typedef struct BGPUpdateMessage {
@@ -81,6 +90,8 @@ typedef struct BGPUpdateMessage {
     uint16_t path_attribute_length;
     std::vector<BGPPathAttribute*> *path_attribute;
     std::vector<BGPRoute*> *nlri;
+
+    BGPUpdateMessage();
 
     /* a few methods for some common things, so that we don't have to read/make
      * every attribute ourself.

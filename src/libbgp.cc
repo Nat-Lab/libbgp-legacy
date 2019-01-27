@@ -8,9 +8,12 @@
 
 namespace LibBGP {
 
-BGPPacket::BGPPacket() {}
+BGPPacket::BGPPacket() {
+    memset(this, 0, sizeof(BGPPacket));
+}
 
 BGPPacket::BGPPacket(uint8_t *buffer) {
+    memset(this, 0, sizeof(BGPPacket));
     this->read(buffer);
 }
 
@@ -22,9 +25,36 @@ int BGPPacket::read(uint8_t *buffer) {
     return Parse(buffer, this);
 }
 
-BGPOpenMessage::BGPOpenMessage() {}
+BGPOptionalParameter::BGPOptionalParameter() {
+    memset(this, 0, sizeof(BGPOptionalParameter));
+}
+
+BGPCapability::BGPCapability() {
+    memset(this, 0, sizeof(BGPCapability));
+}
+
+BGPASPath::BGPASPath() {
+    memset(this, 0, sizeof(BGPASPath));
+}
+
+BGPRoute::BGPRoute() {
+    memset(this, 0, sizeof(BGPRoute));
+}
+
+BGPPathAttribute::BGPPathAttribute() {
+    memset(this, 0, sizeof(BGPPathAttribute));
+}
+
+BGPUpdateMessage::BGPUpdateMessage() {
+    memset(this, 0, sizeof(BGPUpdateMessage));
+}
+
+BGPOpenMessage::BGPOpenMessage() {
+    memset(this, 0, sizeof(BGPOpenMessage));
+}
 
 BGPOpenMessage::BGPOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) {
+    memset(this, 0, sizeof(BGPOpenMessage));
     this->version = 4;
     this->set4BAsn(my_asn);
     this->hold_time = hold_time;
