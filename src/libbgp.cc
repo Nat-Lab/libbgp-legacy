@@ -160,7 +160,7 @@ std::vector<uint32_t>* BGPUpdateMessage::getAsPath() {
 
     if (attr == attrs->end()) return NULL;
     
-    std::vector<uint32_t>* path;
+    std::vector<uint32_t>* path = NULL;
     while (attr != attrs->end()) {
         if ((*attr)->type == 17) return (*attr)->as4_path->path;
         if ((*attr)->type == 2) path = (*attr)->as_path->path;
