@@ -11,21 +11,17 @@ namespace LibBGP {
 typedef struct BGPCapability {
     uint8_t code;
     uint8_t length;
-    uint8_t* value;
 
     bool as4_support;
     uint32_t my_asn;
- 
+
     BGPCapability();
 } BGPCapability;
 
 typedef struct BGPOptionalParameter {
     uint8_t type;
     uint8_t length;
-    uint8_t *value;
-    std::vector<BGPCapability*> *capabilities;
-
-    BGPOptionalParameter();
+    std::vector<BGPCapability> capabilities;
 } BGPOptionalParameter;
 
 typedef struct BGPOpenMessage {
@@ -34,7 +30,7 @@ typedef struct BGPOpenMessage {
     uint16_t hold_time;
     uint32_t bgp_id;
     uint8_t opt_parm_len;
-    std::vector<BGPOptionalParameter*> *opt_parms;
+    std::vector<BGPOptionalParameter> opt_parms;
 
     /* a few methods for some common things, so that we don't have to read/make
      * every opt_parms ourself.
@@ -49,16 +45,12 @@ typedef struct BGPOpenMessage {
 typedef struct BGPASPath {
     uint8_t type;
     uint8_t length;
-    std::vector<uint32_t> *path;
-
-    BGPASPath();
+    std::vector<uint32_t> path;
 } BGPASPath;
 
 typedef struct BGPRoute {
     uint8_t length;
     uint32_t prefix;
-
-    BGPRoute();
 } BGPRoute;
 
 typedef struct BGPPathAttribute {
@@ -71,8 +63,8 @@ typedef struct BGPPathAttribute {
     uint16_t length;
 
     uint8_t origin;
-    BGPASPath *as_path;
-    BGPASPath *as4_path;
+    BGPASPath as_path;
+    BGPASPath as4_path;
     uint32_t next_hop;
     uint32_t med;
     uint32_t local_pref;
@@ -80,30 +72,27 @@ typedef struct BGPPathAttribute {
     uint16_t aggregator_asn;
     uint32_t aggregator;
     uint32_t aggregator_asn4;
-
-    BGPPathAttribute();
+    BGPPathAttribute ();
 } BGPPathAttribute;
 
 typedef struct BGPUpdateMessage {
     uint16_t withdrawn_len;
-    std::vector<BGPRoute*> *withdrawn_routes;
+    std::vector<BGPRoute> withdrawn_routes;
     uint16_t path_attribute_length;
-    std::vector<BGPPathAttribute*> *path_attribute;
-    std::vector<BGPRoute*> *nlri;
-
-    BGPUpdateMessage();
+    std::vector<BGPPathAttribute> path_attribute;
+    std::vector<BGPRoute> nlri;
 
     /* a few methods for some common things, so that we don't have to read/make
      * every attribute ourself.
      */
     BGPPathAttribute* getAttrib(uint8_t attrib_type);
-    void addAttrib(BGPPathAttribute *attrib);
+    void addAttrib(BGPPathAttribute &attrib);
 
     uint32_t getNexthop();
     void setNexthop(uint32_t nexthop);
 
     std::vector<uint32_t>* getAsPath();
-    void setAsPath(std::vector<uint32_t>* path, bool as4);
+    void setAsPath(const std::vector<uint32_t> &path, bool as4);
 
     uint8_t getOrigin();
     void setOrigin(uint8_t origin);
@@ -124,34 +113,34 @@ typedef struct BGPNotificationMessage {
 typedef struct BGPPacket {
     uint16_t length;
     uint8_t type;
-    BGPOpenMessage *open;
-    BGPUpdateMessage *update;
-    BGPNotificationMessage *notification;
+    BGPOpenMessage open;
+    BGPUpdateMessage update;
+    BGPNotificationMessage notification;
 
     BGPPacket();
-    BGPPacket(uint8_t *buffer);
+    BGPPacket(const uint8_t *buffer);
     int write(uint8_t *buffer);
-    uint8_t* read(uint8_t *buffer);
+    const uint8_t* read(const uint8_t *buffer);
 } BGPPacket;
 
 namespace Parsers {
-    template <typename T> T getValue(uint8_t **buffer);
-    uint8_t* parseHeader(uint8_t *buffer, BGPPacket *parsed);
-    uint8_t* parseOpenMessage(uint8_t *buffer, BGPPacket *parsed);
-    uint8_t* parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed);
-    uint8_t* parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed);
+    template <typename T> T getValue(const uint8_t **buffer);
+    const uint8_t* parseHeader(const uint8_t *buffer, BGPPacket *parsed);
+    const uint8_t* parseOpenMessage(const uint8_t *buffer, BGPPacket *parsed);
+    const uint8_t* parseUpdateMessage(const uint8_t *buffer, BGPPacket *parsed);
+    const uint8_t* parseNofiticationMessage(const uint8_t *buffer, BGPPacket *parsed);
 }
 
 namespace Builders {
     template <typename T> size_t putValue(uint8_t **buffer, T value);
-    int buildHeader(uint8_t *buffer, BGPPacket *source);
-    int buildOpenMessage(uint8_t *buffer, BGPPacket *source);
-    int buildUpdateMessage(uint8_t *buffer, BGPPacket *source);
-    int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source);
+    int buildHeader(uint8_t *buffer, const BGPPacket &source);
+    int buildOpenMessage(uint8_t *buffer, const BGPPacket &source);
+    int buildUpdateMessage(uint8_t *buffer, const BGPPacket &source);
+    int buildNofiticationMessage(uint8_t *buffer, const BGPPacket &source);
 }
 
-int Build(uint8_t *buffer, BGPPacket *source);
-uint8_t* Parse(uint8_t *buffer, BGPPacket *parsed);
+int Build(uint8_t *buffer, const BGPPacket &source);
+const uint8_t* Parse(const uint8_t *buffer, BGPPacket *parsed);
 
 }
 

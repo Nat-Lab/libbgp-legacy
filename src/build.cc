@@ -17,16 +17,16 @@ template <typename T> size_t putValue(uint8_t **buffer, T value) {
     return sz;
 }
 
-int buildHeader(uint8_t *buffer, BGPPacket *source) {
+int buildHeader(uint8_t *buffer, const BGPPacket &source) {
     int this_len = 0;
 
     memset(buffer, '\xff', 16);
     buffer += 16; this_len += 16;
 
     this_len += putValue<uint16_t> (&buffer, htons(0));
-    this_len += putValue<uint8_t> (&buffer, source->type);
+    this_len += putValue<uint8_t> (&buffer, source.type);
 
-    switch (source->type) {
+    switch (source.type) {
         case 1: return this_len + buildOpenMessage(buffer, source);
         case 2: return this_len + buildUpdateMessage(buffer, source);
         case 3: return this_len + buildNofiticationMessage(buffer, source);
@@ -35,40 +35,42 @@ int buildHeader(uint8_t *buffer, BGPPacket *source) {
     }
 }
 
-int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
+int buildOpenMessage(uint8_t *buffer, const BGPPacket &source) {
     int this_len = 0;
-    auto *msg = source->open;
+    auto &msg = source.open;
 
-    this_len += putValue<uint8_t> (&buffer, msg->version);
-    this_len += putValue<uint16_t> (&buffer, htons(msg->my_asn));
-    this_len += putValue<uint16_t> (&buffer, htons(msg->hold_time));
-    this_len += putValue<uint32_t> (&buffer, msg->bgp_id);
+    this_len += putValue<uint8_t> (&buffer, msg.version);
+    this_len += putValue<uint16_t> (&buffer, htons(msg.my_asn));
+    this_len += putValue<uint16_t> (&buffer, htons(msg.hold_time));
+    this_len += putValue<uint32_t> (&buffer, msg.bgp_id);
     this_len += putValue<uint8_t> (&buffer, 0);
 
     int parm_len = 0;
-    auto parms = msg->opt_parms;
-    if (parms) std::for_each(parms->begin(), parms->end(), [&parm_len, &buffer](BGPOptionalParameter *param) {
-        parm_len += putValue<uint8_t> (&buffer, param->type);
-        parm_len += putValue<uint8_t> (&buffer, param->length);
-        if (param->value) {
+    auto &parms = msg.opt_parms;
+    if (parms.size()) std::for_each(parms.begin(), parms.end(), [&parm_len, &buffer](BGPOptionalParameter param) {
+        parm_len += putValue<uint8_t> (&buffer, param.type);
+        parm_len += putValue<uint8_t> (&buffer, param.length);
+        /*if (param->value) {
             memcpy(buffer, param->value, param->length);
             buffer += param->length;
             parm_len += param->length;
-        } else if (param->type == 2 && param->capabilities) { // Capability
-            auto *caps = param->capabilities;
+        } else */
+        if (param.type == 2 && param.capabilities.size()) { // Capability
+            auto caps = param.capabilities;
             int caps_len = 0;
-            std::for_each(caps->begin(), caps->end(), [&caps_len, &buffer](BGPCapability *cap) {
-                caps_len += putValue<uint8_t> (&buffer, cap->code);
+            std::for_each(caps.begin(), caps.end(), [&caps_len, &buffer](BGPCapability cap) {
+                caps_len += putValue<uint8_t> (&buffer, cap.code);
 
-                if (cap->value) {
+                /*if (cap->value) {
                     caps_len += putValue<uint8_t> (&buffer, cap->length);
                     memcpy(buffer, cap->value, cap->length);
                     buffer += cap->length;
                     caps_len += cap->length;
-                } else switch (cap->code) {
+                } else*/
+                switch (cap.code) {
                     case 65: {
                         caps_len += putValue<uint8_t> (&buffer, 4);
-                        caps_len += putValue<uint32_t> (&buffer, htonl(cap->my_asn));
+                        caps_len += putValue<uint32_t> (&buffer, htonl(cap.my_asn));
                         break;
                     };
                     default: break;
@@ -85,18 +87,18 @@ int buildOpenMessage(uint8_t *buffer, BGPPacket *source) {
     return this_len + parm_len;
 }
 
-int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
+int buildUpdateMessage(uint8_t *buffer, const BGPPacket &source) {
     int this_len = 0;
-    auto *msg = source->update;
+    auto &msg = source.update;
 
     this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->withdrawn_len
     int withdrawn_len = 0;
-    auto *withdrawn_routes = msg->withdrawn_routes;
-    if (withdrawn_routes) std::for_each(withdrawn_routes->begin(), withdrawn_routes->end(), 
-    [&withdrawn_len, &buffer](BGPRoute *route) {
-        withdrawn_len += putValue<uint8_t> (&buffer, route->length);
-        int prefix_buffer_size = (route->length + 7) / 8;
-        memcpy(buffer, &route->prefix, prefix_buffer_size);
+    auto &withdrawn_routes = msg.withdrawn_routes;
+    if (withdrawn_routes.size()) std::for_each(withdrawn_routes.begin(), withdrawn_routes.end(), 
+    [&withdrawn_len, &buffer](BGPRoute route) {
+        withdrawn_len += putValue<uint8_t> (&buffer, route.length);
+        int prefix_buffer_size = (route.length + 7) / 8;
+        memcpy(buffer, &route.prefix, prefix_buffer_size);
         withdrawn_len += prefix_buffer_size;
         buffer += prefix_buffer_size;
     });
@@ -107,60 +109,60 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
 
     this_len += putValue<uint16_t> (&buffer, htons(0)); // msg->path_attribute_length
     int attrs_len = 0;
-    auto attrs = msg->path_attribute;
-    if (attrs) std::for_each(attrs->begin(), attrs->end(), [&attrs_len, &buffer](BGPPathAttribute *attr) {
+    auto &attrs = msg.path_attribute;
+    if (attrs.size()) std::for_each(attrs.begin(), attrs.end(), [&attrs_len, &buffer](BGPPathAttribute attr) {
         uint8_t flags = 0;
-        flags |= (attr->optional << 7) | (attr->transitive << 6)| (attr->partial << 5) | (attr->extened << 4);
+        flags |= (attr.optional << 7) | (attr.transitive << 6)| (attr.partial << 5) | (attr.extened << 4);
         attrs_len += putValue<uint8_t> (&buffer, flags);
-        attrs_len += putValue<uint8_t> (&buffer, attr->type);
+        attrs_len += putValue<uint8_t> (&buffer, attr.type);
 
-        if (attr->extened) attrs_len += putValue<uint16_t> (&buffer, htons(0));
+        if (attr.extened) attrs_len += putValue<uint16_t> (&buffer, htons(0));
         else attrs_len += putValue<uint8_t> (&buffer, 0);
 
         int attr_len = 0;
-        switch (attr->type) {
+        switch (attr.type) {
             case 1:  // ORIGIN
-                attr_len += putValue<uint8_t> (&buffer, attr->origin); 
+                attr_len += putValue<uint8_t> (&buffer, attr.origin); 
                 break;
             case 2: { // AS_PATH
-                auto *as_path = attr->as_path;
-                auto *path = as_path->path;
-                attr_len += putValue<uint8_t> (&buffer, as_path->type);
-                attr_len += putValue<uint8_t> (&buffer, path->size());
+                auto as_path = attr.as_path;
+                auto path = as_path.path;
+                attr_len += putValue<uint8_t> (&buffer, as_path.type);
+                attr_len += putValue<uint8_t> (&buffer, path.size());
                 
-                for (unsigned int i = 0; i < path->size(); i++)
-                    if (attr->peer_as4_ok) attr_len += putValue<uint16_t> (&buffer, htons(path->at(i)));
-                    else attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
+                for (unsigned int i = 0; i < path.size(); i++)
+                    if (attr.peer_as4_ok) attr_len += putValue<uint16_t> (&buffer, htons(path.at(i)));
+                    else attr_len += putValue<uint32_t> (&buffer, htonl(path.at(i)));
                 break;
             }
             case 3: // NEXTHOP
-                attr_len += putValue<uint32_t> (&buffer, attr->next_hop); 
+                attr_len += putValue<uint32_t> (&buffer, attr.next_hop); 
                 break;
             case 4: // MED
-                attr_len += putValue<uint32_t> (&buffer, attr->med); 
+                attr_len += putValue<uint32_t> (&buffer, attr.med); 
                 break;
             case 5: // L_PREF
-                attr_len += putValue<uint32_t> (&buffer, attr->local_pref); 
+                attr_len += putValue<uint32_t> (&buffer, attr.local_pref); 
                 break;
             case 6: // AA
                 break;
             case 7: // AGGR
-                attr_len += putValue<uint16_t> (&buffer, htons(attr->aggregator_asn));
-                attr_len += putValue<uint32_t> (&buffer, attr->aggregator);
+                attr_len += putValue<uint16_t> (&buffer, htons(attr.aggregator_asn));
+                attr_len += putValue<uint32_t> (&buffer, attr.aggregator);
                 break;
             case 17: { // AS4_PATH
-                auto *as_path = attr->as4_path;
-                auto *path = as_path->path;
-                attr_len += putValue<uint8_t> (&buffer, as_path->type);
-                attr_len += putValue<uint8_t> (&buffer, path->size());
+                auto as_path = attr.as4_path;
+                auto path = as_path.path;
+                attr_len += putValue<uint8_t> (&buffer, as_path.type);
+                attr_len += putValue<uint8_t> (&buffer, path.size());
                 
-                for (unsigned int i = 0; i < path->size(); i++)
-                    attr_len += putValue<uint32_t> (&buffer, htonl(path->at(i)));
+                for (unsigned int i = 0; i < path.size(); i++)
+                    attr_len += putValue<uint32_t> (&buffer, htonl(path.at(i)));
                 break;
             }
             case 18: // AGGR4
-                attr_len += putValue<uint32_t> (&buffer, htonl(attr->aggregator_asn));
-                attr_len += putValue<uint32_t> (&buffer, attr->aggregator);
+                attr_len += putValue<uint32_t> (&buffer, htonl(attr.aggregator_asn));
+                attr_len += putValue<uint32_t> (&buffer, attr.aggregator);
                 break;
             default: return 0;
         } // attr->type switch
@@ -174,11 +176,11 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     uint16_t attrs_len_n = htons(attrs_len);
     memcpy(buffer - attrs_len - 2, &attrs_len_n, sizeof(uint16_t));
 
-    auto nlri = msg->nlri;
-    if (nlri) std::for_each(nlri->begin(), nlri->end(), [&this_len, &buffer](BGPRoute *route) {
-        this_len += putValue<uint8_t> (&buffer, route->length);
-        int prefix_buffer_size = (route->length + 7) / 8;
-        memcpy(buffer, &route->prefix, prefix_buffer_size);
+    auto &nlri = msg.nlri;
+    if (nlri.size()) std::for_each(nlri.begin(), nlri.end(), [&this_len, &buffer](BGPRoute route) {
+        this_len += putValue<uint8_t> (&buffer, route.length);
+        int prefix_buffer_size = (route.length + 7) / 8;
+        memcpy(buffer, &route.prefix, prefix_buffer_size);
         this_len += prefix_buffer_size;
         buffer += prefix_buffer_size;
     });
@@ -186,13 +188,13 @@ int buildUpdateMessage(uint8_t *buffer, BGPPacket *source) {
     return this_len;
 }
 
-int buildNofiticationMessage(uint8_t *buffer, BGPPacket *source) {
+int buildNofiticationMessage(uint8_t *buffer, const BGPPacket &source) {
     return 0;
 }
 
 } // Builders
 
-int Build(uint8_t *buffer, BGPPacket *source) {
+int Build(uint8_t *buffer, const BGPPacket &source) {
     size_t len = Builders::buildHeader(buffer, source);
 
     uint8_t *ptr = buffer + 16;
