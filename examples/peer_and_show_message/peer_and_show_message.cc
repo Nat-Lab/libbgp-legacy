@@ -46,12 +46,8 @@ int main (void) {
         auto bgp_pkt = new LibBGP::BGPPacket(buffer);
 
         if (bgp_pkt->type == 1) { // recevied an OPEN
-            if (!bgp_pkt->open) {
-                printf("received an OPEN message, but failed to parse, ignore.");
-                continue;
-            }
             auto open_msg = bgp_pkt->open;
-            printf("OPEN from AS%d, ID: %s.\n", open_msg->getAsn(), print_ip(open_msg->bgp_id));
+            printf("OPEN from AS%d, ID: %s.\n", open_msg.getAsn(), print_ip(open_msg.bgp_id));
 
             // reply with open
             auto reply_msg = new LibBGP::BGPPacket;
@@ -60,7 +56,7 @@ int main (void) {
             uint32_t my_bgp_id;
             inet_pton(AF_INET, MY_BGP_ID, &my_bgp_id);
 
-            reply_msg->open = new LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
+            reply_msg->open = LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
 
             int len = reply_msg->write(buffer);
             write(fd_conn, buffer, len); // write OPEN
@@ -69,16 +65,11 @@ int main (void) {
         }
 
         if (bgp_pkt->type == 2) { // UPDATE
-             if (!bgp_pkt->update) {
-                printf("received an UPDATE message, but failed to parse, ignore.");
-                continue;
-            }
-
             auto update_msg = bgp_pkt->update;
-            auto as_path = update_msg->getAsPath();
-            auto routes_drop = update_msg->withdrawn_routes;
-            auto routes_add = update_msg->nlri;
-            auto next_hop = update_msg->getNexthop();
+            auto as_path = update_msg.getAsPath();
+            auto routes_drop = update_msg.withdrawn_routes;
+            auto routes_add = update_msg.nlri;
+            auto next_hop = update_msg.getNexthop();
 
             printf("UPDATE received");
 
@@ -89,16 +80,16 @@ int main (void) {
                 for (unsigned int i = 0; i < as_path->size(); i++) printf(" %d", as_path->at(i));
             }
 
-            if (routes_drop->size() > 0) {
+            if (routes_drop.size() > 0) {
                 printf(", withdrawn_routes:");
-                for (unsigned int i = 0; i < routes_drop->size(); i++)
-                    printf(" %s/%d", print_ip(routes_drop->at(i)->prefix), routes_drop->at(i)->length);
+                for (unsigned int i = 0; i < routes_drop.size(); i++)
+                    printf(" %s/%d", print_ip(routes_drop[i].prefix), routes_drop[i].length);
             }
 
-            if (routes_add->size() > 0) {
+            if (routes_add.size() > 0) {
                 printf(", nlri:");
-                for (unsigned int i = 0; i < routes_add->size(); i++)
-                    printf(" %s/%d", print_ip(routes_add->at(i)->prefix), routes_add->at(i)->length);
+                for (unsigned int i = 0; i < routes_add.size(); i++)
+                    printf(" %s/%d", print_ip(routes_add[i].prefix), routes_add[i].length);
             }
 
             printf(".\n");

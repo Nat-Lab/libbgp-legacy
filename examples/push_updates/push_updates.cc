@@ -50,12 +50,8 @@ int main (void) {
         auto bgp_pkt = new LibBGP::BGPPacket(buffer);
 
         if (bgp_pkt->type == 1) { // recevied an OPEN
-            if (!bgp_pkt->open) {
-                printf("received an OPEN message, but failed to parse, ignore.");
-                continue;
-            }
             auto open_msg = bgp_pkt->open;
-            printf("OPEN from AS%d, ID: %s\n", open_msg->getAsn(), print_ip(open_msg->bgp_id));
+            printf("OPEN from AS%d, ID: %s\n", open_msg.getAsn(), print_ip(open_msg.bgp_id));
             //print_ip(open_msg->bgp_id);
             //printf("\n");
 
@@ -66,7 +62,7 @@ int main (void) {
             uint32_t my_bgp_id;
             inet_pton(AF_INET, MY_BGP_ID, &my_bgp_id);
 
-            reply_msg->open = new LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
+            reply_msg->open = LibBGP::BGPOpenMessage(MY_ASN, 60, my_bgp_id); // ASN = MY_ASN, hold = 60, ID = my_bgp_id
 
             int len = reply_msg->write(buffer);
             write(fd_conn, buffer, len); // write OPEN
@@ -88,17 +84,16 @@ int main (void) {
                 printf("Sending update 10.114.0.0/16 to peer.\n");
                 update_sent = true;
                 auto update_msg = new LibBGP::BGPPacket;
-                auto update = new LibBGP::BGPUpdateMessage;
                 update_msg->type = 2; // UPDATE
                 uint32_t prefix_add, nexthop;
                 inet_pton(AF_INET, NEXTHOP, &nexthop);
                 inet_pton(AF_INET, "10.114.0.0", &prefix_add);
-                update->setNexthop(nexthop);
-                update->addPrefix(prefix_add, 16, false); // (prefix, len, is_withdraw)
-                update->setOrigin(0);
-                auto as_path = new std::vector<uint32_t> {MY_ASN};
-                update->setAsPath(as_path, true); // (path, is_4b)
-                update_msg->update = update;
+                update_msg->update.setNexthop(nexthop);
+                update_msg->update.addPrefix(prefix_add, 16, false); // (prefix, len, is_withdraw)
+                update_msg->update.setOrigin(0);
+                std::vector<uint32_t> path {MY_ASN};
+                update_msg->update.setAsPath(path, true); // (path, is_4b)
+                //update_msg->update = update;
                 len = update_msg->write(buffer);
                 write(fd_conn, buffer, len);
 
