@@ -9,7 +9,7 @@
 namespace LibBGP {
 
 namespace Parsers {
-template <typename T> T getValue(const uint8_t **buffer) {
+template <typename T> T getValue(uint8_t **buffer) {
     auto *buf = *buffer;
     size_t sz = sizeof(T);
     T var;
@@ -19,7 +19,7 @@ template <typename T> T getValue(const uint8_t **buffer) {
 
 }
 
-const uint8_t* parseHeader (const uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseHeader (uint8_t *buffer, BGPPacket *parsed) {
     if (memcmp(buffer, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0)
         return buffer;
 
@@ -41,7 +41,7 @@ const uint8_t* parseHeader (const uint8_t *buffer, BGPPacket *parsed) {
 
 }
 
-const uint8_t* parseOpenMessage(const uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseOpenMessage(uint8_t *buffer, BGPPacket *parsed) {
     auto &msg = parsed->open;
     msg.version = getValue<uint8_t> (&buffer);
     msg.my_asn = ntohs(getValue<uint16_t> (&buffer));
@@ -92,7 +92,7 @@ const uint8_t* parseOpenMessage(const uint8_t *buffer, BGPPacket *parsed) {
     return buffer;
 }
 
-const uint8_t* parseUpdateMessage(const uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     auto &msg = parsed->update;
     msg.withdrawn_len = ntohs(getValue<uint16_t> (&buffer));
     auto &withdrawn_routes = msg.withdrawn_routes;
@@ -231,14 +231,14 @@ const uint8_t* parseUpdateMessage(const uint8_t *buffer, BGPPacket *parsed) {
     return buffer;
 }
 
-const uint8_t* parseNofiticationMessage(const uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed) {
     // TODO
     return buffer;
 }
 
 } // Parsers
 
-const uint8_t* Parse(const uint8_t *buffer, BGPPacket *parsed) {
+uint8_t* Parse(uint8_t *buffer, BGPPacket *parsed) {
     return Parsers::parseHeader(buffer, parsed);
 }
 

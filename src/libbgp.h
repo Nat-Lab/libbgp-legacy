@@ -118,17 +118,17 @@ typedef struct BGPPacket {
     BGPNotificationMessage notification;
 
     BGPPacket();
-    BGPPacket(const uint8_t *buffer);
+    BGPPacket(uint8_t *buffer);
     int write(uint8_t *buffer);
-    const uint8_t* read(const uint8_t *buffer);
+    uint8_t* read(uint8_t *buffer);
 } BGPPacket;
 
 namespace Parsers {
-    template <typename T> T getValue(const uint8_t **buffer);
-    const uint8_t* parseHeader(const uint8_t *buffer, BGPPacket *parsed);
-    const uint8_t* parseOpenMessage(const uint8_t *buffer, BGPPacket *parsed);
-    const uint8_t* parseUpdateMessage(const uint8_t *buffer, BGPPacket *parsed);
-    const uint8_t* parseNofiticationMessage(const uint8_t *buffer, BGPPacket *parsed);
+    template <typename T> T getValue(uint8_t **buffer);
+    uint8_t* parseHeader(uint8_t *buffer, BGPPacket *parsed);
+    uint8_t* parseOpenMessage(uint8_t *buffer, BGPPacket *parsed);
+    uint8_t* parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed);
+    uint8_t* parseNofiticationMessage(uint8_t *buffer, BGPPacket *parsed);
 }
 
 namespace Builders {
@@ -140,7 +140,7 @@ namespace Builders {
 }
 
 int Build(uint8_t *buffer, const BGPPacket &source);
-const uint8_t* Parse(const uint8_t *buffer, BGPPacket *parsed);
+uint8_t* Parse(uint8_t *buffer, BGPPacket *parsed);
 
 }
 

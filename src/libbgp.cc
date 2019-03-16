@@ -12,7 +12,7 @@ BGPPacket::BGPPacket() {
     memset(this, 0, sizeof(BGPPacket));
 }
 
-BGPPacket::BGPPacket(const uint8_t *buffer) {
+BGPPacket::BGPPacket(uint8_t *buffer) {
     memset(this, 0, sizeof(BGPPacket));
     this->read(buffer);
 }
@@ -21,7 +21,7 @@ int BGPPacket::write(uint8_t *buffer) {
     return Build(buffer, *this);
 }
 
-const uint8_t* BGPPacket::read(const uint8_t *buffer) {
+uint8_t* BGPPacket::read(uint8_t *buffer) {
     return Parse(buffer, this);
 }
 
