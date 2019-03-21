@@ -216,10 +216,11 @@ uint8_t* parseUpdateMessage(uint8_t *buffer, BGPPacket *parsed) {
     while (parsed_routes_len < nlri_len) {
         BGPRoute route;
         route.length = getValue<uint8_t> (&buffer);
+        route.prefix = 0;
 
         int prefix_buffer_size = (route.length + 7) / 8;
         if (route.length > 32) return buffer;
-        memcpy(&route.prefix, buffer, prefix_buffer_size);
+        if (prefix_buffer_size > 0) memcpy(&route.prefix, buffer, prefix_buffer_size);
 
         buffer += prefix_buffer_size;
         parsed_routes_len += prefix_buffer_size + 1;
